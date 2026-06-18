@@ -9,14 +9,15 @@ Implements the full [ASDLC.io](https://asdlc.io) methodology as a working Claude
 
 ```bash
 # Clone and install into current project
-git clone https://github.com/YOUR_ORG/agentic-sdlc-kit
-bash agentic-sdlc-kit/install.sh
+git clone https://github.com/melnikoleg/asdlc-kit/
+
+bash asdlc-kit/install.sh
 
 # Install globally (available in all projects)
-bash agentic-sdlc-kit/install.sh --global
+bash asdlc-kit/install.sh --global
 
 # Install into specific project
-bash agentic-sdlc-kit/install.sh --project /path/to/your/project
+bash asdlc-kit/install.sh --project /path/to/your/project
 ```
 
 That's it. Open Claude Code in your project and run `/factory`.
