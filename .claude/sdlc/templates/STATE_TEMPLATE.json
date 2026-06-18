@@ -1,0 +1,9 @@
+{
+  "issue": "{issue-name}",
+  "phase": "product",
+  "iteration": 0,
+  "failing_agents": [],
+  "artifacts": [],
+  "started_at": "{ISO8601}",
+  "updated_at": "{ISO8601}"
+}
