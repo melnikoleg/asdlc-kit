@@ -7,7 +7,7 @@ set -euo pipefail
 #     or: bash install.sh [--global] [--project /path/to/project]
 # ============================================================
 
-REPO_URL="https://github.com/YOUR_ORG/agentic-sdlc-kit"
+REPO_URL="https://https://github.com/melnikoleg/asdlc-kit"
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GLOBAL_CLAUDE="$HOME/.claude"
 MODE="project"
