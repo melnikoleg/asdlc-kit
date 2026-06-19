@@ -18,58 +18,49 @@ This project uses an **agent-native Software Development Lifecycle** where speci
 ## Pipeline
 
 ```
-Requirement → product-agent → PRD.md
-             planner-agent  → PLAN.md
+Requirement → product-agent  → PRD.md
+             planner-agent   → PLAN.md
              architect-agent → ADR.md
              [human approval]
              developer-agent → IMPLEMENTATION.md + code
              reviewer-agent  ┐
-             qa-agent        ├── parallel → REVIEW.md + QA.md + DEPLOY.md
-             devops-agent    ┘
+             qa-agent        ┴── parallel → REVIEW.md + QA.md
              [fix loop if needed, max 3x]
              PRODUCTION_READINESS.md
+
+             (optional) /sdlc-deploy → devops-agent → DEPLOY.md + Docker/CI
 ```
 
 ## Available Skills (invoke via /skill-name)
 
 | Skill | Description |
 |-------|-------------|
-| `/sdlc-orchestrate` | Full pipeline end-to-end |
-| `/sdlc-plan` | Planning phase only |
+| `/sdlc-orchestrate` (`/factory`) | Full pipeline end-to-end |
+| `/sdlc-plan` | Planning phase only (PRD + PLAN + ADR) |
 | `/sdlc-implement` | Implementation from existing PLAN.md |
-| `/sdlc-review` | Parallel review (reviewer + qa + devops) |
-| `/sdlc-qa` | QA and tests only |
-| `/sdlc-deploy` | Deployment artifacts only |
-| `/sdlc-status` | Pipeline status dashboard |
+| `/sdlc-review` | Parallel review (reviewer + qa) |
 | `/sdlc-fix` | Fix blocking review issues |
+| `/sdlc-deploy` | Optional Docker/CI/runbook generation |
+| `/sdlc-status` | Status, derived from artifacts present |
 | `/code-reviewer` | Adversarial code review |
 | `/security-audit` | OWASP Top 10 security scan |
 | `/test-writer` | Write tests for existing code |
-| `/prd-writer` | Write structured PRD |
-| `/architect-adr` | Write Architecture Decision Record |
-| `/api-design` | Design REST API with OpenAPI spec |
-| `/docker-setup` | Dockerfile + docker-compose |
-| `/ci-setup` | GitHub Actions CI/CD |
-| `/debug-agent` | Systematic bug root cause analysis |
-| `/refactor` | Safe test-backed refactoring |
-| `/dependency-audit` | CVE scan for dependencies |
 | `/git-commit` | Conventional Commits message |
 
 ## Artifacts
 
-All SDLC artifacts are stored in `docs/{issue-name}/`:
-- `STATE.json` — pipeline state machine
+All SDLC artifacts are stored in `docs/{issue-name}/`. Pipeline status is derived
+from which of these exist — there is no separate state file:
 - `PRD.md` — requirements with testable ACs
 - `PLAN.md` — phased plan with validation commands
 - `ADR.md` — architecture decisions (binding)
-- `IMPLEMENTATION.md` — code changes + validation evidence
+- `IMPLEMENTATION.md` — code changes + real validation evidence
 - `REVIEW.md` — adversarial code review verdict
 - `QA.md` — test results mapped to ACs
-- `DEPLOY.md` — deployment runbook
+- `DEPLOY.md` — deployment runbook (only if /sdlc-deploy was run)
 - `PRODUCTION_READINESS.md` — final sign-off
 
 ## Guardrails (always active)
-- Destructive shell commands blocked (rm -rf /, git push --force)
+- Destructive shell commands blocked (rm -rf /, git push --force, git reset --hard, mkfs, dd)
 - Writes to .env, *.pem, id_rsa, kubeconfig blocked
-- Missing required sections in artifacts trigger warnings
-- Paused pipelines announced on session stop
+- Artifacts missing real evidence/required sections trigger warnings

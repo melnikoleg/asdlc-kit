@@ -10,8 +10,8 @@ Targeted fix loop for blocking review issues.
 ## Pre-flight Checks
 1. Read `docs/{issue}/REVIEW.md` — collect BLOCKING items only (not non-blocking)
 2. Read `docs/{issue}/QA.md` — collect failing ACs
-3. Check STATE.json iteration — if >= 3: write ESCALATION.md, STOP, tell user to fix manually
-4. Update STATE.json: phase="fix", increment iteration
+3. Count prior fix rounds from `docs/{issue}/ESCALATION.md` history / prior IMPLEMENTATION.md
+   fix entries — if 3 rounds already done: write ESCALATION.md, STOP, tell user to fix manually
 
 ## Steps
 1. Build fix scope document listing ONLY:
@@ -26,8 +26,8 @@ Targeted fix loop for blocking review issues.
 
 3. After developer completes:
    - Re-run ONLY agents whose verdict was NEEDS_FIX (not agents that were APPROVED)
-   - If now all APPROVED: write PRODUCTION_READINESS.md, update STATE.json phase="done"
-   - If still NEEDS_FIX: report remaining issues, print iteration count
+   - If now all APPROVED: write PRODUCTION_READINESS.md
+   - If still NEEDS_FIX: report remaining issues, print which fix round this was
 
 ## Escalation Trigger
 ```
@@ -45,4 +45,4 @@ Human review required.
 
 ## Related Skills
 - /sdlc-review — get blocking issues
-- /sdlc-status — check iteration count
+- /sdlc-status — see what artifacts exist

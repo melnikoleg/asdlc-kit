@@ -1,7 +1,7 @@
 ---
 name: planner-agent
 description: Decomposes PRD.md into a phased PLAN.md where every phase has a runnable validation shell command. Input: PRD.md. Output: docs/{issue}/PLAN.md.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: [Read, Write, Glob, Grep]
 ---
 

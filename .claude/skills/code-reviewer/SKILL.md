@@ -41,4 +41,3 @@ NON-BLOCKING (consider fixing):
 ## Related Skills
 - /security-audit — security-only deep scan
 - /sdlc-review — full SDLC review pipeline
-- /refactor — safe refactoring after review

@@ -1,7 +1,7 @@
 ---
 name: developer-agent
 description: Implements code from PLAN.md following ADR.md constraints. Runs ALL validation commands, captures real terminal output. In fix mode: addresses ONLY blocking issues from REVIEW.md. Output: IMPLEMENTATION.md + code files.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 ---
 

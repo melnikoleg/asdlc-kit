@@ -1,6 +1,6 @@
 ---
 name: factory
-description: "Alias for full SDLC pipeline. Usage: /factory <issue-name> "<description>" [--resume|--plan|--implement|--review]"
+description: "Alias for full SDLC pipeline. Usage: /factory <issue-name> "<description>" [--plan|--implement|--review]"
 ---
 
 # /factory
@@ -9,11 +9,12 @@ Shorthand for /sdlc-orchestrate. See `.claude/skills/sdlc-orchestrate/SKILL.md` 
 
 ## Usage
 - /factory <issue> "<description>"     Full pipeline
-- /factory <issue> --resume            Resume from STATE.json
+- /factory <issue>                     Resume — skips phases whose artifact already exists
 - /factory <issue> --plan              Stop after planning (PRD+PLAN+ADR)
 - /factory <issue> --implement         Start from implementation
 - /factory <issue> --review            Start from review
 
 ## Instructions
-Delegate to orchestrator-agent with issue, description, and start phase.
-For --resume: read STATE.json, continue from current phase.
+Run the /sdlc-orchestrate flow with the given issue and description.
+Resume is implicit: skip any phase whose output artifact already exists in
+`docs/{issue}/` and continue from the first missing one.

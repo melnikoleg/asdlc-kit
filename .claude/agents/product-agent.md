@@ -1,7 +1,7 @@
 ---
 name: product-agent
 description: Converts raw requirement text into structured PRD.md with binary-testable acceptance criteria. No vague ACs allowed. Output: docs/{issue}/PRD.md.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: [Read, Write, Glob, Grep, WebSearch]
 ---
 
