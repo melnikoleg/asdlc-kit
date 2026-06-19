@@ -1,4 +1,41 @@
 {
+  "model": "claude-sonnet-4-5",
+  "permissions": {
+    "allow": [
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git status*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(npm test*)",
+      "Bash(npm run*)",
+      "Bash(npx*)",
+      "Bash(pytest*)",
+      "Bash(python -m pytest*)",
+      "Bash(go test*)",
+      "Bash(go build*)",
+      "Bash(docker build*)",
+      "Bash(docker compose*)",
+      "Bash(find*)",
+      "Bash(grep*)",
+      "Bash(ls*)",
+      "Bash(cat*)",
+      "Bash(mkdir*)",
+      "Bash(cp*)",
+      "Bash(mv*)",
+      "Bash(curl -s*)",
+      "Bash(wget*)",
+      "Bash(npm audit*)",
+      "Bash(pip-audit*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -15,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/validate-write-path.sh"
+            "command": "bash .claude/hooks/block-secret-writes.sh"
           }
         ]
       }
@@ -36,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/incomplete-pipeline-guard.sh"
+            "command": "bash .claude/hooks/pipeline-resume-hint.sh"
           }
         ]
       }
@@ -46,40 +83,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/subagent-audit-log.sh"
+            "command": "bash .claude/hooks/audit-log.sh"
           }
         ]
       }
-    ]
-  },
-  "permissions": {
-    "allow": [
-      "Bash(npm test*)",
-      "Bash(npm run lint*)",
-      "Bash(npm run build*)",
-      "Bash(pytest*)",
-      "Bash(python -m pytest*)",
-      "Bash(go test*)",
-      "Bash(cargo test*)",
-      "Bash(docker build*)",
-      "Bash(docker compose*)",
-      "Bash(cat *)",
-      "Bash(ls *)",
-      "Bash(grep *)",
-      "Bash(find *)",
-      "Bash(mkdir -p docs/*)",
-      "Bash(mkdir -p src/*)",
-      "Bash(mkdir -p tests/*)",
-      "Bash(git status)",
-      "Bash(git diff*)",
-      "Bash(git log*)"
-    ],
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(rm -rf ~)",
-      "Bash(git push*)",
-      "Bash(git reset --hard*)",
-      "Bash(git clean -fd*)"
     ]
   }
 }

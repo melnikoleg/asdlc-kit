@@ -1,97 +1,73 @@
-# Agentic SDLC Kit for Claude Code
+# Agentic SDLC Kit v2
 
-**One-command install for a production-grade, agent-driven SDLC in Claude Code.**
+**One-command install** for a complete agent-native Software Development Lifecycle in Claude Code.
 
-Implements the full [ASDLC.io](https://asdlc.io) methodology as a working Claude Code plugin:
-8 specialized agents, 3 slash commands, 5 lifecycle hooks, 2 skills, 2 rule files.
+19 skills · 8 agents · 5 hooks · 3 rules · 2 commands
 
 ## Install
 
 ```bash
-# Clone and install into current project
-git clone https://github.com/melnikoleg/asdlc-kit/
+# Current project
+bash install.sh
 
-bash asdlc-kit/install.sh
+# All projects (global ~/.claude)
+bash install.sh --global
 
-# Install globally (available in all projects)
-bash asdlc-kit/install.sh --global
-
-# Install into specific project
-bash asdlc-kit/install.sh --project /path/to/your/project
+# Specific project
+bash install.sh --project=/path/to/project
 ```
 
-That's it. Open Claude Code in your project and run `/factory`.
+## What You Get
 
-## Quick Start
+### SDLC Skills (8)
+| Skill | What it does |
+|-------|-------------|
+| `/sdlc-orchestrate` | Full pipeline: PRD → plan → code → review → deploy |
+| `/sdlc-plan` | Planning phase only (PRD + PLAN + ADR) |
+| `/sdlc-implement` | Implementation from existing PLAN.md |
+| `/sdlc-review` | Parallel review: reviewer + qa + devops |
+| `/sdlc-qa` | Tests mapped to PRD acceptance criteria |
+| `/sdlc-deploy` | Dockerfile + CI/CD + deployment runbook |
+| `/sdlc-status` | Pipeline status dashboard |
+| `/sdlc-fix` | Fix blocking review issues |
+
+### Engineering Skills (11)
+`/code-reviewer` `/security-audit` `/test-writer` `/architect-adr`
+`/git-commit` `/prd-writer` `/api-design` `/docker-setup`
+`/ci-setup` `/debug-agent` `/refactor` `/dependency-audit`
+
+### Agents (8)
+orchestrator · product · planner · architect · developer · reviewer · qa · devops
+
+### Hooks (5)
+- Block destructive bash commands
+- Block writes to .env / secrets
+- Validate artifact schemas
+- Remind about paused pipelines
+- Audit log for subagent events
+
+## Usage
 
 ```bash
-# Full pipeline: requirements → architecture → code → tests → deploy
-/factory my-feature "Build a REST API for user authentication with JWT"
+# Build a REST API from scratch
+/factory auth-api "Build JWT authentication API with register, login, refresh endpoints"
 
-# Resume after interruption
-/factory my-feature --resume
+# Check what's running
+/sdlc-status
 
-# Check all pipeline statuses
-/factory-status
+# Planning only (review before coding)
+/sdlc-plan user-profile "User profile CRUD with avatar upload"
 
-# See artifacts for a specific issue
-/factory-artifacts my-feature
+# After you approve the plan
+/sdlc-implement user-profile
+
+# Run review
+/sdlc-review user-profile
 ```
 
-## What Gets Installed
-
-| Component | Count | Purpose |
-|---|---|---|
-| Agents | 8 | Orchestrator, Product, Planner, Architect, Developer, Reviewer, QA, DevOps |
-| Commands | 3 | /factory, /factory-status, /factory-artifacts |
-| Hooks | 5 | Block destructive ops, validate paths, schema checks, pipeline guard, audit log |
-| Skills | 2 | /sdlc-plan (planning only), /sdlc-review (parallel review only) |
-| Rules | 2 | Artifact contracts, security rules |
-
-## Pipeline Flow
-
-```
-/factory <issue> "<description>"
-       |
-       ├─ product-agent ────────────────► PRD.md
-       ├─ planner-agent ────────────────► PLAN.md
-       ├─ architect-agent ──────────────► ADR.md
-       ├─ [HUMAN APPROVAL GATE] ─────────────────
-       ├─ developer-agent ──────────────► IMPLEMENTATION.md + code
-       ├─ reviewer-agent ─┐
-       ├─ qa-agent ────────┼─ parallel ─► REVIEW.md, QA.md, DEPLOY.md
-       ├─ devops-agent ───┘
-       ├─ [FIX LOOP if NEEDS_FIX, max 3 iterations]
-       └─ orchestrator ─────────────────► PRODUCTION_READINESS.md
-```
-
-## Artifact Contracts
-
-Every agent **must** return:
-```json
-{"status": "APPROVED|NEEDS_FIX|FAILED", "artifacts": ["path/to/file"], "issues": []}
-```
-
-Artifacts live in `docs/{issue-name}/`:
-`PRD.md` · `PLAN.md` · `ADR.md` · `IMPLEMENTATION.md` · `REVIEW.md` · `QA.md` · `DEPLOY.md` · `PRODUCTION_READINESS.md` · `STATE.json`
-
-## Guardrails (always active)
-
-- ❌ No writes to `.env`, `*.pem`, `id_rsa`, credentials files
-- ❌ No `git push`, `rm -rf /`, `git reset --hard`
-- ✅ Bash scoped to test/build/inspect commands only
-- ✅ Schema validation on every artifact write
-- ✅ Incomplete pipeline warning on Stop event
-
-## Sources & Credits
-
-This kit is assembled from:
-- **ASDLC.io** methodology — spec-first, deterministic protocols, verification architecture
-- **DenizOkcu/claude-code-ai-development-workflow** — SDLC agent patterns, STATE.json design, parallel review
-- **rohitg00/awesome-claude-code-toolkit** — hook patterns, settings.json structure
-- **VoltAgent/awesome-claude-code-subagents** — agent tool assignment strategy
-- **Anthropic Claude Code docs** — hooks reference, subagents, skills, slash commands
+## Requirements
+- Claude Code (claude.ai/code)
+- Python 3 (for settings merge, usually pre-installed)
 
 ## License
-
 MIT

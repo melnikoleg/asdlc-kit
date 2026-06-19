@@ -1,18 +1,20 @@
 # SDLC Artifact Contracts (Always Active)
 
-## Every agent MUST
+## Every Agent MUST
 - Read its input artifacts before starting work
-- Write only its designated output artifact
-- Return JSON verdict: {"status":"APPROVED|NEEDS_FIX|FAILED","artifacts":[],"issues":[]}
-- Capture REAL command output — fabrication is prohibited
+- Write only its designated output artifact(s)
+- Return a JSON verdict: {"status":"APPROVED|NEEDS_FIX|FAILED","artifacts":[],"issues":[]}
+- Capture REAL command output — fabrication is prohibited and immediately detectable
 
-## Artifact Ownership (one artifact = one owner)
-PRD.md -> product-agent
-PLAN.md -> planner-agent
-ADR.md -> architect-agent
-IMPLEMENTATION.md + code -> developer-agent
-REVIEW.md -> reviewer-agent
-QA.md + tests -> qa-agent
-DEPLOY.md + Dockerfile -> devops-agent
-PRODUCTION_READINESS.md -> orchestrator-agent
-STATE.json -> orchestrator-agent
+## Artifact Ownership
+PRD.md                    → product-agent (owner)
+PLAN.md                   → planner-agent (owner)
+ADR.md                    → architect-agent (owner)
+IMPLEMENTATION.md + code  → developer-agent (owner)
+REVIEW.md                 → reviewer-agent (owner)
+QA.md + tests             → qa-agent (owner)
+DEPLOY.md + infra         → devops-agent (owner)
+PRODUCTION_READINESS.md   → orchestrator-agent (owner)
+STATE.json                → orchestrator-agent (owner)
+
+## No agent writes another agent's artifact.
