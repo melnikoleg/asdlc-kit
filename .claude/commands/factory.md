@@ -1,6 +1,6 @@
 ---
 name: factory
-description: "Alias for full SDLC pipeline. Usage: /factory <issue-name> "<description>" [--plan|--implement|--review]"
+description: "Alias for the full SDLC pipeline. Usage: /factory <issue-name> <description> [--plan|--implement|--review]"
 ---
 
 # /factory

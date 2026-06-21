@@ -9,8 +9,11 @@ case "$(basename "$FP")" in
     grep -q "Acceptance Criteria" "$FP" 2>/dev/null || echo "[SDLC] WARNING: PRD.md missing 'Acceptance Criteria' section" >&2 ;;
   PLAN.md)
     grep -q "Validation:" "$FP" 2>/dev/null || echo "[SDLC] WARNING: PLAN.md missing 'Validation:' commands" >&2 ;;
-  REVIEW.md|QA.md|DEPLOY.md)
+  REVIEW.md|DEPLOY.md)
     grep -qE "Verdict: (APPROVED|NEEDS_FIX)" "$FP" 2>/dev/null || echo "[SDLC] WARNING: $FP missing Verdict line" >&2 ;;
+  QA.md)
+    grep -qE "Verdict: (APPROVED|NEEDS_FIX)" "$FP" 2>/dev/null || echo "[SDLC] WARNING: QA.md missing Verdict line" >&2
+    grep -q '```' "$FP" 2>/dev/null || echo "[SDLC] WARNING: QA.md has no test-run output block — evidence must be real captured output, not a heading" >&2 ;;
   IMPLEMENTATION.md)
     if ! grep -q "Validation Evidence" "$FP" 2>/dev/null; then
       echo "[SDLC] WARNING: IMPLEMENTATION.md missing 'Validation Evidence' section" >&2

@@ -50,12 +50,14 @@ Launch TWO agents simultaneously:
 Deployment artifacts are NOT generated here. Run `/sdlc-deploy {issue}` separately
 when the change actually needs Docker/CI — most features do not.
 
-### Step 8 — Fix Loop (max 3 iterations)
+### Step 8 — Fix Loop (max 3 rounds)
 If any verdict is NEEDS_FIX:
   Collect all BLOCKING issues from REVIEW.md and QA.md.
-  Invoke `developer-agent` in fix mode (touch only files tied to blocking issues).
+  Invoke `developer-agent` in fix mode (touch only files tied to blocking issues;
+  it appends a `## Fix Round N` section to IMPLEMENTATION.md — that heading count IS
+  the round counter, so it survives across separate /sdlc-fix runs).
   Re-run ONLY the agents that returned NEEDS_FIX.
-  Repeat until all APPROVED or 3 iterations reached.
+  Repeat until all APPROVED or 3 Fix Round headings exist.
 
 If still failing after 3 iterations:
   Write `docs/{issue}/ESCALATION.md` with remaining blocks, STOP, ask the human to take over.
