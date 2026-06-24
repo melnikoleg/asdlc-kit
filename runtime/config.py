@@ -1,0 +1,79 @@
+"""Runtime configuration sourced from environment variables.
+
+Production server use authenticates with ``ANTHROPIC_API_KEY`` (the
+service-account path). A Claude Pro/Max subscription (OAuth login) is only
+appropriate for local development; if no key is set we fall back to whatever
+credentials the local Claude Code install already holds.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+
+def _repo_root() -> Path:
+    """Repository root = the directory that contains ``.claude/``.
+
+    Walks up from this file so the package works regardless of the current
+    working directory (CLI, server, tests).
+    """
+    here = Path(__file__).resolve()
+    for parent in (here, *here.parents):
+        if (parent / ".claude").is_dir():
+            return parent
+    # Fall back to the parent of the runtime/ package.
+    return here.parent.parent
+
+
+@dataclass(frozen=True)
+class Config:
+    repo_root: Path
+    anthropic_api_key: str | None
+    checkpoint_backend: str  # "sqlite" | "postgres"
+    db_url: str | None
+    sqlite_path: Path
+    max_iterations: int
+
+    @property
+    def agents_dir(self) -> Path:
+        return self.repo_root / ".claude" / "agents"
+
+    @property
+    def rules_dir(self) -> Path:
+        return self.repo_root / ".claude" / "rules"
+
+    @property
+    def docs_dir(self) -> Path:
+        return self.repo_root / "docs"
+
+    def docs_for(self, issue: str) -> Path:
+        return self.docs_dir / issue
+
+
+def load_config() -> Config:
+    repo_root = Path(os.environ.get("ASDLC_REPO_ROOT", "")).resolve() if os.environ.get(
+        "ASDLC_REPO_ROOT"
+    ) else _repo_root()
+
+    backend = os.environ.get("CHECKPOINT_BACKEND", "sqlite").strip().lower()
+    if backend not in ("sqlite", "postgres"):
+        raise ValueError(f"CHECKPOINT_BACKEND must be 'sqlite' or 'postgres', got {backend!r}")
+
+    db_url = os.environ.get("DB_URL")
+    if backend == "postgres" and not db_url:
+        raise ValueError("CHECKPOINT_BACKEND=postgres requires DB_URL to be set")
+
+    sqlite_path = Path(
+        os.environ.get("ASDLC_SQLITE_PATH", str(repo_root / ".asdlc" / "checkpoints.sqlite"))
+    )
+
+    return Config(
+        repo_root=repo_root,
+        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        checkpoint_backend=backend,
+        db_url=db_url,
+        sqlite_path=sqlite_path,
+        max_iterations=int(os.environ.get("ASDLC_MAX_ITERATIONS", "3")),
+    )
