@@ -47,6 +47,13 @@ Launch THREE agents simultaneously:
 - `qa-agent` → `docs/{issue}/QA.md` + test files
 - `devops-agent` → `docs/{issue}/DEPLOY.md` + Dockerfile + CI config
 
+**Ensemble option (high-risk / security-sensitive changes):** replace the single
+`reviewer-agent` with `/sdlc-ensemble-review {issue} [k]`, which runs k reviewers
+in parallel (optionally across different models), majority-votes the verdict, and
+frequency-weights blocking issues into the same `REVIEW.md`. qa-agent and
+devops-agent run unchanged. The downstream fix loop is identical — it consumes the
+consolidated REVIEW.md the same way.
+
 ### Step 8 — Fix Loop (max 3x)
 If any NEEDS_FIX:
   Collect all blocking issues from REVIEW.md and QA.md.

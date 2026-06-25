@@ -38,6 +38,7 @@ Requirement → product-agent → PRD.md
 | `/sdlc-plan` | Planning phase only |
 | `/sdlc-implement` | Implementation from existing PLAN.md |
 | `/sdlc-review` | Parallel review (reviewer + qa + devops) |
+| `/sdlc-ensemble-review` | Kaggle-style ensemble review: k reviewers → majority-vote verdict + frequency-weighted issues |
 | `/sdlc-qa` | QA and tests only |
 | `/sdlc-deploy` | Deployment artifacts only |
 | `/sdlc-status` | Pipeline status dashboard |

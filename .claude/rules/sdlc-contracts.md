@@ -18,3 +18,8 @@ PRODUCTION_READINESS.md   → orchestrator-agent (owner)
 STATE.json                → orchestrator-agent (owner)
 
 ## No agent writes another agent's artifact.
+
+## Ensemble review exception (only when /sdlc-ensemble-review is used)
+REVIEW.run{n}.md          → reviewer-agent instance n (intermediate)
+REVIEW.md                 → ensemble-aggregator (consolidated, replaces single-reviewer ownership)
+The consolidated REVIEW.md still satisfies the standard REVIEW.md contract.
