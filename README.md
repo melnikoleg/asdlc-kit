@@ -60,6 +60,19 @@ product · planner · architect · developer · reviewer · qa · devops (opt-in
 /sdlc-review user-profile
 ```
 
+## Run the pipeline in a container
+
+Run the full pipeline autonomously on a clean, disposable environment:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+ASDLC_ISSUE=todo-api ASDLC_REQUIREMENT="Build a TODO REST API" \
+  docker compose up --build
+```
+
+Artifacts land in `./docs/<issue>/`. See `docs/setup/docker.md` for server
+mode, manual mode, and the optional Postgres state backend.
+
 ## Requirements
 - Claude Code (claude.ai/code)
 - Python 3 (for settings merge, usually pre-installed)

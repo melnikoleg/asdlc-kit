@@ -1,0 +1,57 @@
+# Run the Agentic SDLC pipeline in a clean, self-contained container.
+#
+#   export ANTHROPIC_API_KEY=sk-ant-...
+#   ASDLC_ISSUE=todo-api ASDLC_REQUIREMENT="Build a TODO REST API" \
+#       docker compose up --build
+#
+# Artifacts land in ./docs/<issue>/ on the host. Checkpoints persist in the
+# named volume so a crashed run can be resumed.
+#
+# Durable Postgres state instead of SQLite:
+#   CHECKPOINT_BACKEND=postgres \
+#   DB_URL=postgresql://asdlc:asdlc@postgres:5432/asdlc \
+#       docker compose --profile postgres up --build
+
+services:
+  asdlc:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: asdlc-kit:latest
+    environment:
+      # Required. Service-account auth for headless agent runs.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in your shell or a .env file}
+      ASDLC_MODE: ${ASDLC_MODE:-autonomous}
+      ASDLC_ISSUE: ${ASDLC_ISSUE:-}
+      ASDLC_REQUIREMENT: ${ASDLC_REQUIREMENT:-}
+      ASDLC_AUTO_APPROVE: ${ASDLC_AUTO_APPROVE:-1}
+      ASDLC_MAX_ITERATIONS: ${ASDLC_MAX_ITERATIONS:-3}
+      CHECKPOINT_BACKEND: ${CHECKPOINT_BACKEND:-sqlite}
+      DB_URL: ${DB_URL:-}
+    volumes:
+      # Generated SDLC artifacts (PRD/PLAN/ADR/IMPLEMENTATION/...) persist here.
+      - ./docs:/app/docs
+      # Durable checkpoints for --resume across restarts.
+      - asdlc-state:/app/.asdlc
+    # On Linux, if bind-mounted ./docs isn't writable by UID 1000, uncomment:
+    # user: "${UID:-1000}:${GID:-1000}"
+
+  # Optional durable state backend. Enable with: docker compose --profile postgres up
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: asdlc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-asdlc}
+      POSTGRES_DB: asdlc
+    volumes:
+      - asdlc-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asdlc"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  asdlc-state:
+  asdlc-pg:

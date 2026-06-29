@@ -1,0 +1,10 @@
+.git
+.gitignore
+.asdlc
+.asdlc-venv
+**/__pycache__
+**/*.pyc
+*.egg-info
+**/*.egg-info
+.pytest_cache
+docs/.sdlc-audit.log
