@@ -65,6 +65,8 @@ from which of these exist — there is no separate state file:
 
 See `docs/setup/mcp-configs.md` for ready-to-paste MCP server configs (Claude Desktop, Cursor, Copilot, Claude Code project-local) that add `codebase-memory-mcp` — persistent cross-session project memory for agents.
 
+See `docs/setup/rtk.md` to install RTK — a transparent CLI proxy that compresses shell command output by 60–90% before it hits the LLM context, cutting token costs across the entire pipeline.
+
 ## Guardrails (always active)
 - Destructive shell commands blocked (rm -rf /, git push --force, git reset --hard, mkfs, dd)
 - Writes to .env, *.pem, id_rsa, kubeconfig blocked
