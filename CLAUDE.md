@@ -46,6 +46,7 @@ Requirement → product-agent  → PRD.md
 | `/security-audit` | OWASP Top 10 security scan |
 | `/test-writer` | Write tests for existing code |
 | `/git-commit` | Conventional Commits message |
+| `/ponytail [lite\|full\|ultra\|off]` | Lazy senior dev mode — minimal, necessary code only |
 
 ## Artifacts
 
@@ -59,6 +60,10 @@ from which of these exist — there is no separate state file:
 - `QA.md` — test results mapped to ACs
 - `DEPLOY.md` — deployment runbook (only if /sdlc-deploy was run)
 - `PRODUCTION_READINESS.md` — final sign-off
+
+## Editor & MCP Setup
+
+See `docs/setup/mcp-configs.md` for ready-to-paste MCP server configs (Claude Desktop, Cursor, Copilot, Claude Code project-local) that add `codebase-memory-mcp` — persistent cross-session project memory for agents.
 
 ## Guardrails (always active)
 - Destructive shell commands blocked (rm -rf /, git push --force, git reset --hard, mkfs, dd)
