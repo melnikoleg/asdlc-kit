@@ -19,8 +19,10 @@ services:
       dockerfile: docker/Dockerfile
     image: asdlc-kit:latest
     environment:
-      # Required. Service-account auth for headless agent runs.
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in your shell or a .env file}
+      # Auth path A (recommended for servers): service-account API key.
+      # Auth path B: leave this empty and mount your Claude subscription
+      # credentials instead — see the commented volume below.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ASDLC_MODE: ${ASDLC_MODE:-autonomous}
       ASDLC_ISSUE: ${ASDLC_ISSUE:-}
       ASDLC_REQUIREMENT: ${ASDLC_REQUIREMENT:-}
@@ -33,6 +35,11 @@ services:
       - ./docs:/app/docs
       # Durable checkpoints for --resume across restarts.
       - asdlc-state:/app/.asdlc
+      # Auth path B — use your Claude Pro/Max subscription instead of an API key.
+      # Authenticate once on the host (run `claude` and log in), then uncomment.
+      # Read-write so the CLI can refresh the token. Linux host only — macOS
+      # keeps the token in the Keychain, not a file.
+      # - ${HOME}/.claude:/home/appuser/.claude
     # On Linux, if bind-mounted ./docs isn't writable by UID 1000, uncomment:
     # user: "${UID:-1000}:${GID:-1000}"
 

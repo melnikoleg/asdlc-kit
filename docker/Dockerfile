@@ -68,8 +68,10 @@ WORKDIR /app
 # The whole repo: config.py finds the repo root by walking up for .claude/,
 # so agents, rules, hooks and the runtime package must all be present together.
 COPY --chown=appuser:appuser . /app
-# Checkpoint dir, owned by appuser so a named volume inherits writable perms.
-RUN mkdir -p /app/.asdlc && chown -R appuser:appuser /app/.asdlc \
+# Checkpoint dir + the user-level Claude config dir (for mounted subscription
+# credentials), both owned by appuser so volumes/mounts inherit writable perms.
+RUN mkdir -p /app/.asdlc /home/appuser/.claude \
+    && chown -R appuser:appuser /app/.asdlc /home/appuser/.claude \
     && chmod +x /app/.claude/hooks/*.sh /app/docker/entrypoint.sh
 
 USER appuser

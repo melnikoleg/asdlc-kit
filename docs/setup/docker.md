@@ -12,9 +12,44 @@ Python/Node toolchain so generated projects can actually be validated.
 ## What you need
 
 - Docker with Compose v2
-- An `ANTHROPIC_API_KEY` (service-account key — the headless/automated path)
+- Auth — either an `ANTHROPIC_API_KEY`, or your Claude Pro/Max subscription
+  credentials (see [Authentication](#authentication) below)
 
-The API key is **injected at runtime**, never baked into the image.
+Credentials are **injected at runtime**, never baked into the image.
+
+## Authentication
+
+The runtime uses `ANTHROPIC_API_KEY` if set, and otherwise falls back to
+whatever credentials the Claude Code CLI already holds (`runtime/config.py`).
+So you have two options.
+
+### Path A — API key (recommended for servers / automation)
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### Path B — Claude subscription (Pro/Max)
+
+The CLI reads its OAuth token from a file in your home dir, so mount that file
+into the container. **Linux host only** — macOS stores the token in the
+Keychain, not a file, so there's nothing to bind-mount (use an API key, or run
+from a Linux host/devcontainer).
+
+1. Authenticate once on the host — run `claude` and log in. This writes
+   `~/.claude/.credentials.json`.
+2. Uncomment the credentials mount in `docker-compose.yml`:
+   ```yaml
+   volumes:
+     - ${HOME}/.claude:/home/appuser/.claude
+   ```
+   It's mounted read-write so the CLI can refresh the token when it expires.
+3. Leave `ANTHROPIC_API_KEY` unset.
+
+> Note: the runtime README calls subscription auth "only appropriate for local
+> development" — long-running, automated server workloads should use an API
+> key. Subscription auth here is best for trying the pipeline on your own
+> machine without provisioning a key.
 
 ## Autonomous run (default)
 
@@ -78,7 +113,7 @@ No code changes — only the checkpointer backend differs.
 
 | Var | Default | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | **Required.** Headless agent auth. |
+| `ANTHROPIC_API_KEY` | — | Headless agent auth. Optional if subscription creds are mounted (see Authentication). |
 | `ASDLC_MODE` | `autonomous` | `autonomous` \| `server` \| `manual`. |
 | `ASDLC_ISSUE` | — | Kebab-case issue name (required in autonomous mode). |
 | `ASDLC_REQUIREMENT` | — | Requirement text (required in autonomous mode). |

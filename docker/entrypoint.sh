@@ -17,6 +17,15 @@ fi
 
 MODE="${ASDLC_MODE:-autonomous}"
 
+# Auth preflight: either an API key (service-account path) or mounted Claude
+# subscription credentials. Warn loudly rather than fail with a cryptic SDK
+# error 20 minutes into a run.
+if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ ! -f "${HOME}/.claude/.credentials.json" ]; then
+    echo "WARNING: no ANTHROPIC_API_KEY and no ${HOME}/.claude/.credentials.json found." >&2
+    echo "         Set ANTHROPIC_API_KEY, or mount your Claude subscription creds:" >&2
+    echo "         docker-compose.yml -> volumes -> - \${HOME}/.claude:/home/appuser/.claude" >&2
+fi
+
 case "$MODE" in
     server)
         echo ">> asdlc: HTTP server on :${PORT:-8000} (POST /pipelines, /pipelines/{issue}/approve)"
