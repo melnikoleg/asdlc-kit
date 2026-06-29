@@ -31,6 +31,7 @@ def _repo_root() -> Path:
 class Config:
     repo_root: Path
     anthropic_api_key: str | None
+    openrouter_api_key: str | None
     checkpoint_backend: str  # "sqlite" | "postgres"
     db_url: str | None
     sqlite_path: Path
@@ -72,6 +73,7 @@ def load_config() -> Config:
     return Config(
         repo_root=repo_root,
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        openrouter_api_key=os.environ.get("OPENROUTER_API_KEY"),
         checkpoint_backend=backend,
         db_url=db_url,
         sqlite_path=sqlite_path,

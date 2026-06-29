@@ -118,8 +118,14 @@ async def run_agent(node: str, prompt: str, config: Config) -> AgentResult:
     """Load the agent for ``node`` and run it, returning its parsed verdict.
 
     Retries once with an explicit JSON-only nudge if no verdict is found.
+    Agents with ``provider: openrouter`` are routed to the OpenRouter runner
+    instead of the Claude Agent SDK.
     """
     agent = load_agent(node, config)
+
+    if agent.provider == "openrouter":
+        from .openrouter_runner import run_openrouter_agent  # lazy import
+        return await run_openrouter_agent(agent, prompt, config)
 
     text = await _collect_text(prompt, agent, config)
     verdict = extract_verdict(text)

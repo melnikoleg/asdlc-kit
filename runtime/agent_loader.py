@@ -31,6 +31,7 @@ AGENT_FILE = {
 class AgentDef:
     name: str
     model: str | None
+    provider: str  # "anthropic" (default) | "openrouter"
     tools: tuple[str, ...]
     body: str  # Markdown system prompt (frontmatter stripped)
 
@@ -95,6 +96,7 @@ def load_agent(node: str, config: Config) -> AgentDef:
     return AgentDef(
         name=fm.get("name", stem),
         model=fm.get("model") or None,
+        provider=fm.get("provider", "anthropic"),
         tools=_parse_tools(fm.get("tools")),
         body=body,
     )
