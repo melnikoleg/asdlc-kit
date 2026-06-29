@@ -35,5 +35,5 @@ Comprehensive test generation for existing code.
 - Do NOT write tests that check implementation details (test behavior, not code)
 
 ## Related Skills
-- /sdlc-qa — QA mapped to PRD acceptance criteria
+- /sdlc-review — runs qa-agent with tests mapped to PRD acceptance criteria
 - /code-reviewer — review before writing more tests

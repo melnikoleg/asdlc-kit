@@ -7,11 +7,16 @@ description: Fix blocking issues from REVIEW.md or QA.md. Reads blocking issues,
 
 Targeted fix loop for blocking review issues.
 
+## Fix-Round Counter (artifact-derived — no STATE.json)
+The round count is the number of `## Fix Round` headings already present in
+`docs/{issue}/IMPLEMENTATION.md`. The developer-agent appends one such heading
+on every fix-mode run, so the counter lives in the artifact itself.
+
 ## Pre-flight Checks
 1. Read `docs/{issue}/REVIEW.md` — collect BLOCKING items only (not non-blocking)
 2. Read `docs/{issue}/QA.md` — collect failing ACs
-3. Check STATE.json iteration — if >= 3: write ESCALATION.md, STOP, tell user to fix manually
-4. Update STATE.json: phase="fix", increment iteration
+3. Count existing `## Fix Round` headings in IMPLEMENTATION.md.
+   If already 3: write `docs/{issue}/ESCALATION.md`, STOP, tell the user to fix manually.
 
 ## Steps
 1. Build fix scope document listing ONLY:
@@ -22,12 +27,13 @@ Targeted fix loop for blocking review issues.
    - PLAN.md (reference)
    - ADR.md (binding constraints — cannot violate)
    - Fix scope document
-   - Instruction: "Modify ONLY files related to these blocking issues"
+   - Instruction: "Modify ONLY files related to these blocking issues, and append a
+     `## Fix Round N` section to IMPLEMENTATION.md with the round's evidence"
 
 3. After developer completes:
    - Re-run ONLY agents whose verdict was NEEDS_FIX (not agents that were APPROVED)
-   - If now all APPROVED: write PRODUCTION_READINESS.md, update STATE.json phase="done"
-   - If still NEEDS_FIX: report remaining issues, print iteration count
+   - If now all APPROVED: write PRODUCTION_READINESS.md
+   - If still NEEDS_FIX: report remaining issues and print the current round number
 
 ## Escalation Trigger
 ```
@@ -45,4 +51,4 @@ Human review required.
 
 ## Related Skills
 - /sdlc-review — get blocking issues
-- /sdlc-status — check iteration count
+- /sdlc-status — see what artifacts exist

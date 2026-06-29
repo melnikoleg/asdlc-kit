@@ -13,12 +13,11 @@ Code generation phase using existing plan artifacts.
 3. Read `docs/{issue}/ADR.md` if exists — its constraints are BINDING
 
 ## Steps
-1. Update STATE.json: phase="implement"
-2. Invoke `developer-agent`:
+1. Invoke `developer-agent`:
    - Input: PLAN.md + ADR.md + PRD.md (for AC context)
    - Developer runs every validation command from PLAN.md
    - Developer writes IMPLEMENTATION.md with REAL terminal output as evidence
-3. Update STATE.json: phase="review", artifacts=[list all changed files]
+2. Confirm IMPLEMENTATION.md lists every changed source file in its Changes table
 
 ## Success Criteria
 - IMPLEMENTATION.md has all PLAN.md validation commands showing real PASS output

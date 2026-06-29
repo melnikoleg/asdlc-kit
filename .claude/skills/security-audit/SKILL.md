@@ -61,4 +61,3 @@ Critical: N | High: N | Medium: N | Low: N
 
 ## Related Skills
 - /code-reviewer — general code quality review
-- /dependency-audit — CVE scan for dependencies

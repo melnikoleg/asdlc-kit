@@ -1,8 +1,8 @@
-# Agentic SDLC Kit v2
+# Agentic SDLC Kit (slim)
 
-**One-command install** for a complete agent-native Software Development Lifecycle in Claude Code.
+**One-command install** for an agent-native Software Development Lifecycle in Claude Code.
 
-19 skills · 8 agents · 5 hooks · 3 rules · 2 commands
+11 skills · 7 agents · 3 hooks · 3 rules · 1 command
 
 ## Install
 
@@ -19,32 +19,27 @@ bash install.sh --project=/path/to/project
 
 ## What You Get
 
-### SDLC Skills (8)
+### SDLC Skills (7)
 | Skill | What it does |
 |-------|-------------|
-| `/sdlc-orchestrate` | Full pipeline: PRD → plan → code → review → deploy |
+| `/sdlc-orchestrate` | Full pipeline: PRD → plan → code → review |
 | `/sdlc-plan` | Planning phase only (PRD + PLAN + ADR) |
 | `/sdlc-implement` | Implementation from existing PLAN.md |
-| `/sdlc-review` | Parallel review: reviewer + qa + devops |
-| `/sdlc-qa` | Tests mapped to PRD acceptance criteria |
-| `/sdlc-deploy` | Dockerfile + CI/CD + deployment runbook |
-| `/sdlc-status` | Pipeline status dashboard |
+| `/sdlc-review` | Parallel review: reviewer + qa |
 | `/sdlc-fix` | Fix blocking review issues |
+| `/sdlc-deploy` | Optional: Dockerfile + CI/CD + deployment runbook |
+| `/sdlc-status` | Status derived from artifacts present |
 
-### Engineering Skills (11)
-`/code-reviewer` `/security-audit` `/test-writer` `/architect-adr`
-`/git-commit` `/prd-writer` `/api-design` `/docker-setup`
-`/ci-setup` `/debug-agent` `/refactor` `/dependency-audit`
+### Engineering Skills (4)
+`/code-reviewer` `/security-audit` `/test-writer` `/git-commit`
 
-### Agents (8)
-orchestrator · product · planner · architect · developer · reviewer · qa · devops
+### Agents (7)
+product · planner · architect · developer · reviewer · qa · devops (opt-in)
 
-### Hooks (5)
-- Block destructive bash commands
+### Hooks (3)
+- Block destructive bash commands (single source of truth)
 - Block writes to .env / secrets
-- Validate artifact schemas
-- Remind about paused pipelines
-- Audit log for subagent events
+- Validate artifact schemas (requires real evidence blocks)
 
 ## Usage
 

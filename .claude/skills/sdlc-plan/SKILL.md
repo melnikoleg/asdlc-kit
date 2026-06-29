@@ -8,7 +8,7 @@ description: Run the planning phase only: product-agent → planner-agent → ar
 Produce all planning artifacts. Stop before implementation.
 
 ## Steps
-1. Create `docs/{issue}/`, write STATE.json (phase="product")
+1. Create `docs/{issue}/`
 2. Invoke `product-agent` → `docs/{issue}/PRD.md`
 3. Invoke `planner-agent` → `docs/{issue}/PLAN.md`
 4. Invoke `architect-agent` → `docs/{issue}/ADR.md` (or skip)
@@ -26,4 +26,3 @@ Produce all planning artifacts. Stop before implementation.
 ## Related Skills
 - /sdlc-orchestrate — full pipeline
 - /sdlc-implement — next step after review
-- /prd-writer — standalone PRD generation

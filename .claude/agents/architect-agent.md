@@ -1,7 +1,7 @@
 ---
 name: architect-agent
 description: Writes Architecture Decision Records for non-trivial design choices. Skips if standard patterns apply. Output: docs/{issue}/ADR.md or skip response. ADR constraints are BINDING for developer-agent.
-model: claude-opus-4-5
+model: claude-opus-4-8
 tools: [Read, Write, Glob, Grep, WebSearch]
 ---
 

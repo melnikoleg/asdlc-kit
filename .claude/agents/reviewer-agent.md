@@ -1,7 +1,7 @@
 ---
 name: reviewer-agent
-description: Adversarial code reviewer. Checks all PRD ACs, ADR constraints, and OWASP Top 10. Returns APPROVED or NEEDS_FIX with file:line specific blocking issues. Run in parallel with qa-agent and devops-agent.
-model: claude-opus-4-5
+description: Adversarial code reviewer. Checks all PRD ACs, ADR constraints, and OWASP Top 10. Returns APPROVED or NEEDS_FIX with file:line specific blocking issues. Run in parallel with qa-agent.
+model: claude-opus-4-8
 tools: [Read, Grep, Glob, Bash]
 ---
 

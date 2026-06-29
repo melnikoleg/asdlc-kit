@@ -1,39 +1,50 @@
 ---
 name: sdlc-status
-description: Show SDLC pipeline status for all active issues or a specific one. Displays phase, iteration, failing agents, artifact completeness, and time since last update. Use to check what is in progress, paused, escalated, or done. Invoke as: /sdlc-status [issue-name]
+description: Show SDLC pipeline status for all issues or a specific one, derived from which artifacts exist in docs/{issue}/. Read-only. Invoke as: /sdlc-status [issue-name]
 ---
 
 # SDLC Status
 
-Pipeline status dashboard.
+Status is derived from artifact presence — there is no STATE.json to read.
+
+## Phase Derivation
+For an issue, the current phase is the first missing artifact in this order:
+```
+PRD.md            → product
+PLAN.md           → plan
+ADR.md (optional) → architect   (a "no ADR needed" note also counts as present)
+IMPLEMENTATION.md → implement
+REVIEW.md + QA.md → review
+PRODUCTION_READINESS.md → done
+ESCALATION.md present → escalated
+```
 
 ## Steps
 
 ### Without issue-name (show all)
-1. Glob `docs/*/STATE.json`
-2. Parse each: issue, phase, iteration, failing_agents, updated_at
-3. Print table:
+1. Glob `docs/*/` directories.
+2. For each, derive phase from artifacts present (rules above).
+3. Print a table:
    ```
-   Issue              Phase          Iter  Failing     Updated
-   ────────────────────────────────────────────────────────────
-   auth-api           implement      0     —           2026-06-18 19:30
-   user-profile       done           1     —           2026-06-17 14:20
-   payments           escalated      3     reviewer    2026-06-16 09:10
+   Issue              Phase          Next step
+   ─────────────────────────────────────────────────────────
+   auth-api           implement      /sdlc-implement auth-api
+   user-profile       done           —
+   payments           escalated      see docs/payments/ESCALATION.md
    ```
-4. Flags: 🔴 escalated | 🟡 paused >24h | ✅ done
+4. Flags: 🔴 escalated | ✅ done | 🟡 in progress
 
 ### With issue-name (detail view)
-1. Print full STATE.json (pretty)
-2. List artifacts present vs expected:
+1. List artifacts present vs expected:
    ```
    ✅ PRD.md       ✅ PLAN.md      ✅ ADR.md
    ✅ IMPLEMENTATION.md           🔴 REVIEW.md (missing)
-   🔴 QA.md (missing)             🔴 DEPLOY.md (missing)
+   🔴 QA.md (missing)
    ```
-3. Show resume command: `/sdlc-orchestrate {issue} --resume`
+2. Show the next command to run (`/sdlc-orchestrate {issue}` resumes from the gap).
 
 ## Anti-Patterns
-- Do NOT modify any files in this skill — read-only
+- Do NOT modify any files — read-only
 - Do NOT start or resume pipelines — just report status
 
 ## Related Skills

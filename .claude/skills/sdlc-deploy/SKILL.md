@@ -34,6 +34,5 @@ Standalone deployment artifact generation.
 - NEVER skip rollback plan
 
 ## Related Skills
-- /ci-setup — CI/CD only
-- /docker-setup — Docker only
-- /sdlc-review — full review including DevOps
+- /sdlc-review — code + QA review (run before deploy)
+- /sdlc-orchestrate — full pipeline

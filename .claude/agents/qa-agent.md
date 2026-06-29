@@ -1,7 +1,7 @@
 ---
 name: qa-agent
 description: QA specialist: writes and runs tests for every PRD acceptance criterion, produces QA.md with real test output and AC coverage map. Run in parallel with reviewer-agent.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 ---
 
