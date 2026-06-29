@@ -74,7 +74,11 @@ def _shape(result: dict[str, Any]) -> dict[str, Any]:
 @app.post("/pipelines")
 async def start(req: StartRequest) -> dict[str, Any]:
     graph = _state["graph"]
-    result = await graph.ainvoke(new_state(req.issue, req.requirement), _thread(req.issue))
+    try:
+        initial = new_state(req.issue, req.requirement)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    result = await graph.ainvoke(initial, _thread(req.issue))
     return _shape(result)
 
 

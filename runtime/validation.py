@@ -14,12 +14,14 @@ from pathlib import Path
 from typing import Any
 
 # Mirror of .claude/hooks/block-destructive.sh — even though commands come from
-# our own PLAN.md, we never run obviously destructive ones.
+# our own PLAN.md, we never run obviously destructive ones. Keep this list in
+# sync with that hook so graph-run validation is no weaker than interactive use.
 _DENY_PATTERNS = (
     "rm -rf /",
     "rm -rf ~",
     "git push --force",
     "git push -f",
+    "git reset --hard",
     "> /dev/sda",
     "mkfs",
     "dd if=",
@@ -44,6 +46,15 @@ def parse_validation_commands(plan_text: str) -> list[str]:
 
 def is_destructive(command: str) -> bool:
     return any(pat in command for pat in _DENY_PATTERNS)
+
+
+def _as_text(stream: Any) -> str:
+    """Coerce a captured stream (str, bytes, or None) to text."""
+    if stream is None:
+        return ""
+    if isinstance(stream, bytes):
+        return stream.decode("utf-8", "replace")
+    return str(stream)
 
 
 def run_command(command: str, cwd: Path, timeout: int = 600) -> dict[str, Any]:
@@ -71,11 +82,23 @@ def run_command(command: str, cwd: Path, timeout: int = 600) -> dict[str, Any]:
             "output": output[-8000:],  # cap stored output
             "passed": proc.returncode == 0,
         }
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        # Surface whatever the command printed before it was killed — a hung
+        # validation is far easier to diagnose with its partial output. The
+        # captured streams on TimeoutExpired can be bytes even with text=True.
+        partial = _as_text(exc.stdout) + _as_text(exc.stderr)
         return {
             "command": command,
             "exit_code": -1,
-            "output": f"TIMEOUT after {timeout}s",
+            "output": f"TIMEOUT after {timeout}s\n{partial[-4000:]}".rstrip(),
+            "passed": False,
+        }
+    except OSError as exc:
+        # e.g. command too long, or the shell itself cannot be spawned.
+        return {
+            "command": command,
+            "exit_code": -1,
+            "output": f"ERROR: could not run command: {exc}",
             "passed": False,
         }
 

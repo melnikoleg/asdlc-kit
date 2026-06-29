@@ -73,7 +73,12 @@ async def _run(args: argparse.Namespace) -> int:
             if not args.requirement:
                 print("error: a requirement is required to start a pipeline", file=sys.stderr)
                 return 2
-            result = await graph.ainvoke(new_state(args.issue, args.requirement), thread)
+            try:
+                initial = new_state(args.issue, args.requirement)
+            except ValueError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 2
+            result = await graph.ainvoke(initial, thread)
 
         if _print_interrupt(result):
             return 0

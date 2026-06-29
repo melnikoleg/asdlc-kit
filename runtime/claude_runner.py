@@ -42,7 +42,7 @@ def extract_verdict(text: str) -> AgentResult | None:
     when several verdict-shaped objects appear we take the last valid one.
     """
     last: AgentResult | None = None
-    for candidate in _balanced_objects(text):
+    for candidate in _json_objects(text):
         try:
             data = json.loads(candidate)
         except json.JSONDecodeError:
@@ -60,19 +60,36 @@ def extract_verdict(text: str) -> AgentResult | None:
     return last
 
 
-def _balanced_objects(text: str):
-    """Yield substrings of ``text`` that are brace-balanced JSON candidates."""
-    starts = [i for i, c in enumerate(text) if c == "{"]
-    for start in starts:
-        depth = 0
-        for end in range(start, len(text)):
-            if text[end] == "{":
-                depth += 1
-            elif text[end] == "}":
-                depth -= 1
-                if depth == 0:
-                    yield text[start : end + 1]
-                    break
+def _json_objects(text: str):
+    """Yield top-level brace-balanced JSON candidates from ``text``.
+
+    A single forward pass that respects JSON string quoting and escapes, so a
+    ``}`` inside a string value (e.g. an issue description like ``"missing }"``)
+    does not prematurely close the object and drop an otherwise-valid verdict.
+    """
+    depth = 0
+    start = -1
+    in_string = False
+    escaped = False
+    for i, ch in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}" and depth > 0:
+            depth -= 1
+            if depth == 0:
+                yield text[start : i + 1]
 
 
 async def _collect_text(prompt: str, agent: AgentDef, config: Config) -> str:

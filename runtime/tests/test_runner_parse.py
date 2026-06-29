@@ -31,6 +31,20 @@ def test_handles_nested_braces():
     assert extract_verdict(text).status == "FAILED"
 
 
+def test_brace_inside_string_does_not_truncate_verdict():
+    # A '}' inside a string value must not prematurely close the object.
+    text = '{"status":"NEEDS_FIX","issues":["unbalanced } brace in message"]}'
+    v = extract_verdict(text)
+    assert v is not None and v.status == "NEEDS_FIX"
+    assert v.issues == ["unbalanced } brace in message"]
+
+
+def test_escaped_quote_inside_string_is_handled():
+    text = r'{"status":"FAILED","issues":["he said \"oops}\" loudly"]}'
+    v = extract_verdict(text)
+    assert v is not None and v.status == "FAILED"
+
+
 @pytest.mark.asyncio
 async def test_run_agent_retries_then_succeeds(real_config, monkeypatch):
     calls = {"n": 0}

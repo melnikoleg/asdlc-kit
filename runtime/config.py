@@ -69,11 +69,21 @@ def load_config() -> Config:
         os.environ.get("ASDLC_SQLITE_PATH", str(repo_root / ".asdlc" / "checkpoints.sqlite"))
     )
 
+    raw_iterations = os.environ.get("ASDLC_MAX_ITERATIONS", "3")
+    try:
+        max_iterations = int(raw_iterations)
+    except ValueError:
+        raise ValueError(
+            f"ASDLC_MAX_ITERATIONS must be an integer, got {raw_iterations!r}"
+        ) from None
+    if max_iterations < 1:
+        raise ValueError(f"ASDLC_MAX_ITERATIONS must be >= 1, got {max_iterations}")
+
     return Config(
         repo_root=repo_root,
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
         checkpoint_backend=backend,
         db_url=db_url,
         sqlite_path=sqlite_path,
-        max_iterations=int(os.environ.get("ASDLC_MAX_ITERATIONS", "3")),
+        max_iterations=max_iterations,
     )
