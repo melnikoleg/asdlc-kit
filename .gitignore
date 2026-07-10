@@ -8,3 +8,6 @@ __pycache__/
 *.pyc
 *.egg-info/
 .pytest_cache/
+
+# Generated usage dashboard (python -m runtime.dashboard)
+dashboard.html

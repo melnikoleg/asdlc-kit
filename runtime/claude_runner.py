@@ -24,11 +24,43 @@ VALID_STATUSES = {"APPROVED", "NEEDS_FIX", "FAILED"}
 
 
 @dataclass
+class Usage:
+    """Real token/cost/timing usage captured from the SDK ``ResultMessage``.
+
+    Feeds the metrics dashboard; all fields default to zero so a mock runner (or
+    an SDK version that omits usage) degrades gracefully to a no-cost record.
+    """
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_creation_tokens: int = 0
+    cost_usd: float = 0.0
+    duration_ms: int = 0
+    num_turns: int = 0
+    model: str | None = None
+
+    def merge(self, other: "Usage") -> "Usage":
+        """Sum numeric usage across sessions (e.g. a run plus its retry)."""
+        return Usage(
+            input_tokens=self.input_tokens + other.input_tokens,
+            output_tokens=self.output_tokens + other.output_tokens,
+            cache_read_tokens=self.cache_read_tokens + other.cache_read_tokens,
+            cache_creation_tokens=self.cache_creation_tokens + other.cache_creation_tokens,
+            cost_usd=self.cost_usd + other.cost_usd,
+            duration_ms=self.duration_ms + other.duration_ms,
+            num_turns=self.num_turns + other.num_turns,
+            model=self.model or other.model,
+        )
+
+
+@dataclass
 class AgentResult:
     status: str  # APPROVED | NEEDS_FIX | FAILED
     artifacts: list[str] = field(default_factory=list)
     issues: list[Any] = field(default_factory=list)
     raw_text: str = ""
+    usage: Usage | None = None
 
     @property
     def ok(self) -> bool:
@@ -92,8 +124,8 @@ def _json_objects(text: str):
                 yield text[start : i + 1]
 
 
-async def _collect_text(prompt: str, agent: AgentDef, config: Config) -> str:
-    """Run one headless Claude Code session and return all assistant text."""
+async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[str, Usage]:
+    """Run one headless Claude Code session; return (assistant text, usage)."""
     from claude_agent_sdk import ClaudeAgentOptions, query  # lazy import
 
     options = ClaudeAgentOptions(
@@ -107,9 +139,40 @@ async def _collect_text(prompt: str, agent: AgentDef, config: Config) -> str:
     )
 
     chunks: list[str] = []
+    usage = Usage(model=agent.model)
     async for message in query(prompt=prompt, options=options):
         chunks.append(_message_text(message))
-    return "".join(c for c in chunks if c)
+        message_usage = _usage_from_message(message)
+        if message_usage is not None:
+            usage = usage.merge(message_usage)
+    return "".join(c for c in chunks if c), usage
+
+
+def _usage_from_message(message: Any) -> Usage | None:
+    """Extract token/cost/timing from an SDK ``ResultMessage`` (best-effort)."""
+    raw = getattr(message, "usage", None)
+    cost = getattr(message, "total_cost_usd", None)
+    duration = getattr(message, "duration_ms", None)
+    turns = getattr(message, "num_turns", None)
+    if raw is None and cost is None and duration is None:
+        return None
+    raw = raw if isinstance(raw, dict) else {}
+
+    def _int(key: str) -> int:
+        try:
+            return int(raw.get(key, 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    return Usage(
+        input_tokens=_int("input_tokens"),
+        output_tokens=_int("output_tokens"),
+        cache_read_tokens=_int("cache_read_input_tokens"),
+        cache_creation_tokens=_int("cache_creation_input_tokens"),
+        cost_usd=float(cost or 0.0),
+        duration_ms=int(duration or 0),
+        num_turns=int(turns or 0),
+    )
 
 
 def _message_text(message: Any) -> str:
@@ -134,13 +197,15 @@ def _message_text(message: Any) -> str:
 async def run_agent(node: str, prompt: str, config: Config) -> AgentResult:
     """Load the agent for ``node`` and run it, returning its parsed verdict.
 
-    Retries once with an explicit JSON-only nudge if no verdict is found.
+    Retries once with an explicit JSON-only nudge if no verdict is found. Token
+    usage is accumulated across both attempts and attached to the result.
     """
     agent = load_agent(node, config)
 
-    text = await _collect_text(prompt, agent, config)
+    text, usage = await _run_session(prompt, agent, config)
     verdict = extract_verdict(text)
     if verdict is not None:
+        verdict.usage = usage
         return verdict
 
     nudge = (
@@ -148,10 +213,14 @@ async def run_agent(node: str, prompt: str, config: Config) -> AgentResult:
         + "\n\nIMPORTANT: End your response with ONLY the JSON verdict object "
         + '{"status":"APPROVED|NEEDS_FIX|FAILED","artifacts":[],"issues":[]}'
     )
-    text2 = await _collect_text(nudge, agent, config)
+    text2, usage2 = await _run_session(nudge, agent, config)
+    usage = usage.merge(usage2)
     verdict = extract_verdict(text2)
     if verdict is not None:
+        verdict.usage = usage
         return verdict
 
     # No parseable verdict — treat as failure rather than silently passing.
-    return AgentResult(status="FAILED", raw_text=text + "\n---retry---\n" + text2)
+    return AgentResult(
+        status="FAILED", raw_text=text + "\n---retry---\n" + text2, usage=usage
+    )

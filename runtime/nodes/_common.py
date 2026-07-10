@@ -6,6 +6,7 @@ from typing import Any, Awaitable, Callable, Protocol
 
 from ..claude_runner import AgentResult
 from ..config import Config
+from ..metrics import build_metric, write_metrics
 from ..state import PipelineState, Phase, mirror_to_disk, now_iso
 
 
@@ -19,11 +20,28 @@ class Runner(Protocol):
         ...
 
 
-def base_update(state: PipelineState, phase: Phase, config: Config) -> dict[str, Any]:
-    """Phase transition + STATE.json mirror, returned as a partial state update."""
+def base_update(
+    state: PipelineState,
+    phase: Phase,
+    config: Config,
+    metric: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Phase transition + STATE.json/METRICS.json mirror, as a partial update.
+
+    ``metric`` (if given) is this node's usage record: it is returned as a
+    reducer delta AND folded into the on-disk metrics mirror. The mirror uses
+    ``state``'s already-merged metric list plus this delta, so it stays complete
+    without the review fan-out racing on the file (review nodes don't mirror).
+    """
     update: dict[str, Any] = {"phase": phase, "updated_at": now_iso()}
+    if metric is not None:
+        update["metrics"] = [metric]
+    docs = config.docs_for(state["issue"])
     # Mirror using the post-transition view so STATE.json reflects this node.
-    mirror_to_disk({**state, **update}, config.docs_for(state["issue"]))
+    mirror_to_disk({**state, **update}, docs)
+    all_metrics = list(state.get("metrics", [])) + ([metric] if metric else [])
+    if all_metrics:
+        write_metrics(all_metrics, docs)
     return update
 
 
@@ -39,7 +57,8 @@ def make_generative_node(
     async def _node(state: PipelineState) -> dict[str, Any]:
         prompt = build_prompt(state, config)
         result = await runner(node, prompt, config)
-        update = base_update(state, phase, config)
+        metric = build_metric(node, result.status, result.usage, state.get("iteration", 0))
+        update = base_update(state, phase, config, metric=metric)
         update["verdicts"] = {node: result.status}
         update["artifacts"] = result.artifacts  # reducer union-appends
         return update
@@ -70,6 +89,11 @@ def make_review_node(
         if not should_run:
             return {"verdicts": {node: prior}}
         result = await runner(node, build_prompt(state, config), config)
-        return {"verdicts": {node: result.status}, "artifacts": result.artifacts}
+        metric = build_metric(node, result.status, result.usage, state.get("iteration", 0))
+        return {
+            "verdicts": {node: result.status},
+            "artifacts": result.artifacts,
+            "metrics": [metric],
+        }
 
     return _node
