@@ -1,9 +1,10 @@
-"""Pipeline state — a typed, code-owned analogue of ``docs/{issue}/STATE.json``.
+"""Pipeline state — typed, code-owned, checkpointed by LangGraph.
 
-Unlike the native pipeline, where the LLM updates STATE.json "by good will",
-every field here is written by graph node code. The state is mirrored back to
-``docs/{issue}/STATE.json`` so the native ``/sdlc-status`` skill and the Stop
-hook keep working unchanged.
+Unlike the native pipeline (which derives status from artifact presence),
+every field here is written by graph node code. A small snapshot is mirrored
+to ``docs/{issue}/STATE.json`` for observability — its only in-repo consumer
+is the metrics dashboard (``runtime.metrics._phase_of``), which reads the
+current phase per issue.
 """
 
 from __future__ import annotations
@@ -117,8 +118,8 @@ def new_state(issue: str, requirement: str) -> PipelineState:
     )
 
 
-# Fields mirrored into STATE.json (must stay compatible with the native schema
-# in .claude/sdlc/templates/STATE_TEMPLATE.json).
+# Fields mirrored into STATE.json (the dashboard reads "phase" from it;
+# the rest is for humans inspecting a run).
 _STATE_JSON_FIELDS = (
     "issue",
     "phase",
@@ -131,7 +132,7 @@ _STATE_JSON_FIELDS = (
 
 
 def mirror_to_disk(state: PipelineState, docs_dir: Path) -> Path:
-    """Write the native-compatible STATE.json for an issue."""
+    """Write the STATE.json observability snapshot for an issue."""
     docs_dir.mkdir(parents=True, exist_ok=True)
     payload = {k: state.get(k) for k in _STATE_JSON_FIELDS}
     payload["updated_at"] = now_iso()

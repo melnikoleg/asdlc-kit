@@ -2,7 +2,9 @@
 
 **One-command install** for an agent-native Software Development Lifecycle in Claude Code.
 
-11 skills · 7 agents · 3 hooks · 3 rules · 1 command
+12 skills · 7 agents · 3 hooks · 4 rules · 1 command
+
+Also included: [`runtime/`](runtime/README.md) — an optional LangGraph orchestrator that runs the same agents as a deterministic, resumable service (CLI + HTTP server + usage dashboard).
 
 ## Install
 

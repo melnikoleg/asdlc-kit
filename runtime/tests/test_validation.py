@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from runtime.validation import (
+    _DENY_PATTERNS,
     all_passed,
     is_destructive,
     parse_validation_commands,
@@ -46,17 +48,15 @@ def test_destructive_command_blocked(tmp_path):
 
 
 def test_deny_patterns_match_shell_hook():
-    # These must stay in sync with .claude/hooks/block-destructive.sh.
-    for cmd in (
-        "rm -rf /",
-        "rm -rf ~",
-        "git push --force",
-        "git push -f",
-        "git reset --hard",
-        "mkfs.ext4 /dev/sda",
-        "dd if=/dev/zero of=/dev/sda",
-    ):
-        assert is_destructive(cmd), cmd
+    # _DENY_PATTERNS mirrors .claude/hooks/block-destructive.sh; parse the
+    # hook's `for pat in "…" "…"` line so any drift fails this test.
+    hook = Path(__file__).resolve().parents[2] / ".claude" / "hooks" / "block-destructive.sh"
+    match = re.search(r'^for pat in (.+); do$', hook.read_text(encoding="utf-8"), re.MULTILINE)
+    assert match, "could not find deny-pattern list in block-destructive.sh"
+    hook_patterns = re.findall(r'"([^"]+)"', match.group(1))
+    assert set(hook_patterns) == set(_DENY_PATTERNS)
+    for pat in hook_patterns:
+        assert is_destructive(f"prefix; {pat} suffix"), pat
 
 
 def test_timeout_records_partial_output(tmp_path):
