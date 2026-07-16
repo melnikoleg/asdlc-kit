@@ -20,11 +20,13 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from langgraph.types import Command
 from pydantic import BaseModel
 
 from .checkpoint import open_checkpointer
 from .config import load_config
+from .dashboard import build_dashboard_data, render_html
 from .graph import build_graph
 from .state import new_state
 
@@ -74,7 +76,11 @@ def _shape(result: dict[str, Any]) -> dict[str, Any]:
 @app.post("/pipelines")
 async def start(req: StartRequest) -> dict[str, Any]:
     graph = _state["graph"]
-    result = await graph.ainvoke(new_state(req.issue, req.requirement), _thread(req.issue))
+    try:
+        initial = new_state(req.issue, req.requirement)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    result = await graph.ainvoke(initial, _thread(req.issue))
     return _shape(result)
 
 
@@ -92,3 +98,15 @@ async def status(issue: str) -> dict[str, Any]:
     if not snapshot.values:
         raise HTTPException(status_code=404, detail="pipeline not found")
     return {"next": list(snapshot.next), **_shape(snapshot.values)}
+
+
+@app.get("/metrics")
+async def metrics() -> dict[str, Any]:
+    """Aggregated usage metrics (JSON) across all pipelines."""
+    return build_dashboard_data(_config)
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard() -> str:
+    """Rendered usage dashboard: agents used, tokens, cost and timing."""
+    return render_html(build_dashboard_data(_config))

@@ -120,3 +120,22 @@ async def test_state_json_is_mirrored(temp_config):
     data = json.loads(state_file.read_text())
     assert data["issue"] == ISSUE
     assert data["phase"] == "done"
+
+
+@pytest.mark.asyncio
+async def test_metrics_recorded_for_every_agent(temp_config):
+    out = await drive(temp_config)
+    final = out["final"]
+    # One metric per agent run: product, planner, architect, developer + 3 reviews.
+    agents = {m["agent"] for m in final["metrics"]}
+    assert agents == {
+        "product-agent", "planner-agent", "architect-agent",
+        "developer-agent", "reviewer-agent", "qa-agent", "devops-agent",
+    }
+    # And the full list is mirrored to METRICS.json.
+    import json
+
+    metrics_file = temp_config.docs_for(ISSUE) / "METRICS.json"
+    assert metrics_file.is_file()
+    disk = json.loads(metrics_file.read_text())
+    assert len(disk) == len(final["metrics"])

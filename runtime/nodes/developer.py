@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import Config
+from ..metrics import build_metric
 from ..state import PipelineState
 from ._common import Runner, base_update
 
@@ -48,7 +49,8 @@ def make_developer_node(config: Config, runner: Runner):
             prompt = _normal_prompt(issue)
             phase = "implement"
         result = await runner("developer", prompt, config)
-        update = base_update(state, phase, config)
+        metric = build_metric("developer", result.status, result.usage, state.get("iteration", 0))
+        update = base_update(state, phase, config, metric=metric)
         update["verdicts"] = {"developer": result.status}
         update["artifacts"] = result.artifacts  # reducer union-appends
         return update

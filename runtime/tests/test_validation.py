@@ -45,6 +45,28 @@ def test_destructive_command_blocked(tmp_path):
     assert "BLOCKED" in res["output"]
 
 
+def test_deny_patterns_match_shell_hook():
+    # These must stay in sync with .claude/hooks/block-destructive.sh.
+    for cmd in (
+        "rm -rf /",
+        "rm -rf ~",
+        "git push --force",
+        "git push -f",
+        "git reset --hard",
+        "mkfs.ext4 /dev/sda",
+        "dd if=/dev/zero of=/dev/sda",
+    ):
+        assert is_destructive(cmd), cmd
+
+
+def test_timeout_records_partial_output(tmp_path):
+    res = run_command("echo partial-marker; sleep 5", tmp_path, timeout=1)
+    assert res["passed"] is False
+    assert res["exit_code"] == -1
+    assert "TIMEOUT" in res["output"]
+    assert "partial-marker" in res["output"]
+
+
 def test_all_passed_semantics():
     assert all_passed({}) is True  # no gate
     assert all_passed({"a": {"passed": True}}) is True

@@ -14,7 +14,9 @@ from pathlib import Path
 
 from .config import Config
 
-# Logical node name -> agent definition file stem.
+# Logical node name -> agent definition file stem. Every entry MUST have a
+# matching .claude/agents/<stem>.md (enforced by test_every_agent_loads); the
+# graph orchestrates these agents, there is no separate "orchestrator" agent.
 AGENT_FILE = {
     "product": "product-agent",
     "planner": "planner-agent",
@@ -23,7 +25,6 @@ AGENT_FILE = {
     "reviewer": "reviewer-agent",
     "qa": "qa-agent",
     "devops": "devops-agent",
-    "orchestrator": "orchestrator-agent",
 }
 
 

@@ -80,7 +80,28 @@ uvicorn runtime.server:app
 # POST /pipelines                {"issue","requirement"}     → start (pauses at gate)
 # POST /pipelines/{issue}/approve {"decision":"approve"}     → resume
 # GET  /pipelines/{issue}                                     → state snapshot
+# GET  /metrics                                               → usage metrics (JSON)
+# GET  /dashboard                                             → usage dashboard (HTML)
 ```
+
+## Usage dashboard — which skills ran, tokens, cost & timing
+
+Every agent run records a real metric — the agent (skill) invoked, its model,
+verdict, token counts, cost and duration, all captured from the SDK
+`ResultMessage` (no estimates). Records accumulate in pipeline state and are
+mirrored to `docs/{issue}/METRICS.json` as the graph runs.
+
+Render a self-contained, theme-aware HTML dashboard aggregating every pipeline:
+
+```bash
+python -m runtime.dashboard              # writes ./dashboard.html
+python -m runtime.dashboard --print      # HTML to stdout
+asdlc-dashboard -o report.html           # installed console script
+```
+
+Or serve it live from the running server at `GET /dashboard` (and the raw
+aggregate at `GET /metrics`). The dashboard shows total token/cost/time KPIs, a
+per-agent token-spend breakdown, per-pipeline totals, and a recent-runs log.
 
 ## Tests
 
