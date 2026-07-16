@@ -69,11 +69,11 @@ DST_SETTINGS="$TARGET_DIR/settings.json"
 
 if [ -f "$DST_SETTINGS" ] && command -v python3 &>/dev/null; then
   info "Merging settings.json (preserving existing hooks/permissions)..."
-  python3 - <<'PYEOF'
-import json, sys, os
+  SRC_SETTINGS="$SRC_SETTINGS" DST_SETTINGS="$DST_SETTINGS" python3 - <<'PYEOF'
+import json, os
 
-src_path = os.environ.get("SRC_SETTINGS") or (os.path.dirname(os.path.abspath(__file__)) + "/../.claude/settings.json")
-dst_path = os.environ.get("DST_SETTINGS") or (os.path.expanduser("~/.claude/settings.json"))
+src_path = os.environ["SRC_SETTINGS"]
+dst_path = os.environ["DST_SETTINGS"]
 
 try:
     with open(src_path) as f: src = json.load(f)
@@ -109,13 +109,7 @@ except Exception as e:
     print(f"Merge failed: {e} — using source settings")
     import shutil; shutil.copy(src_path, dst_path)
 PYEOF
-  SRC_SETTINGS="$SRC_SETTINGS" DST_SETTINGS="$DST_SETTINGS" python3 - <<'PYEOF2'
-import json, os
-src = os.environ["SRC_SETTINGS"]; dst = os.environ["DST_SETTINGS"]
-with open(src) as f: s = json.load(f)
-with open(dst) as f: d = json.load(f)
-print("Settings: OK")
-PYEOF2
+  success "settings.json merged"
 else
   cp "$SRC_SETTINGS" "$DST_SETTINGS"
   success "settings.json installed"

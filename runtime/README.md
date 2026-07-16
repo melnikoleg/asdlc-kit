@@ -19,7 +19,7 @@ This package moves the deterministic parts **out of the LLM and into graph code*
 | Approval gate | Text "MANDATORY STOP" | `interrupt()` — physically blocks |
 | Fix-loop limit | Counter the model updates | Real counter in a conditional edge |
 | Validation | Agent *asked* to run commands | Graph runs them via `subprocess`, records real output |
-| State | LLM edits `STATE.json` | Typed state written by node code, mirrored to `STATE.json` |
+| State | Derived from artifact presence | Typed state written by node code, mirrored to `STATE.json` for the dashboard |
 | Resume after crash | `--resume` re-reads JSON | Durable checkpointer (SQLite/Postgres) |
 
 The LLM still does all generative work; the agents, rules and hooks in `.claude/`
