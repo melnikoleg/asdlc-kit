@@ -10,6 +10,7 @@ Status is derived from artifact presence — there is no STATE.json to read.
 ## Phase Derivation
 For an issue, the current phase is the first missing artifact in this order:
 ```
+CODEBASE_CONTEXT.md (optional) → codebase-scan   (a "greenfield" note also counts as present)
 PRD.md            → product
 PLAN.md           → plan
 ADR.md (optional) → architect   (a "no ADR needed" note also counts as present)

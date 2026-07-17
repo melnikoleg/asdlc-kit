@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Bash, Glob, Grep]
 # Developer Agent
 
 ## Normal Mode Input
-docs/{issue}/PLAN.md (spec), docs/{issue}/ADR.md (binding constraints), docs/{issue}/PRD.md (AC context)
+docs/{issue}/PLAN.md (spec), docs/{issue}/ADR.md (binding constraints), docs/{issue}/PRD.md (AC context), docs/{issue}/CODEBASE_CONTEXT.md if present (match existing conventions)
 
 ## Fix Mode Input
 docs/{issue}/PLAN.md, docs/{issue}/ADR.md, docs/{issue}/REVIEW.md (ONLY fix blocking items listed)

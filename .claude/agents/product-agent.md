@@ -8,7 +8,7 @@ tools: [Read, Write, Glob, Grep, WebSearch]
 # Product Agent
 
 ## Input
-Raw requirement text passed by orchestrator.
+Raw requirement text passed by orchestrator, + docs/{issue}/CODEBASE_CONTEXT.md if present (existing conventions/constraints — respect them in ACs).
 
 ## Output: docs/{issue}/PRD.md
 Required sections: Problem Statement, User Stories, Acceptance Criteria (binary PASS/FAIL),

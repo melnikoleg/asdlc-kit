@@ -9,6 +9,7 @@
   (the validate-artifact-schema hook checks for this).
 
 ## Artifact Ownership
+CODEBASE_CONTEXT.md       → codebase-agent (owner, brownfield repos only)
 PRD.md                    → product-agent (owner)
 PLAN.md                   → planner-agent (owner)
 ADR.md                    → architect-agent (owner)

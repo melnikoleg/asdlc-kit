@@ -1,17 +1,20 @@
-"""Bridge to Claude Code via the Claude Agent SDK.
+"""Bridge to Claude Code via the Claude Agent SDK, or the raw CLI as fallback.
 
 Each generative graph node calls :func:`run_agent`, which launches a headless
 Claude Code session configured from the agent's ``.claude/agents/*.md``
-definition. We run with ``cwd = repo_root`` so the SDK picks up the project's
-``.claude/settings.json`` hooks — guardrails stay enforced in one place rather
-than being duplicated in Python.
+definition. We run with ``cwd = repo_root`` so guardrails (``.claude/settings.json``
+hooks) stay enforced in one place rather than being duplicated in Python.
 
-The SDK is imported lazily so the rest of the package (state, validation,
-graph wiring, tests with a mock runner) works without the SDK installed.
+When ``config.anthropic_api_key`` is set we use the Claude Agent SDK (imported
+lazily so the rest of the package works without it installed). When no key is
+set, sessions run under the developer's local Claude Code subscription login;
+the SDK still works there, but we instead shell out to ``claude -p`` directly
+so this path has no dependency on the ``claude-agent-sdk`` pip package.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from typing import Any
@@ -125,7 +128,17 @@ def _json_objects(text: str):
 
 
 async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[str, Usage]:
-    """Run one headless Claude Code session; return (assistant text, usage)."""
+    """Run one headless Claude Code session; return (assistant text, usage).
+
+    Dispatches to the Agent SDK when an API key is configured, otherwise to a
+    raw ``claude -p`` subprocess running under the local subscription login.
+    """
+    if config.anthropic_api_key:
+        return await _run_session_sdk(prompt, agent, config)
+    return await _run_session_cli(prompt, agent, config)
+
+
+async def _run_session_sdk(prompt: str, agent: AgentDef, config: Config) -> tuple[str, Usage]:
     from claude_agent_sdk import ClaudeAgentOptions, query  # lazy import
 
     options = ClaudeAgentOptions(
@@ -146,6 +159,47 @@ async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[st
         if message_usage is not None:
             usage = usage.merge(message_usage)
     return "".join(c for c in chunks if c), usage
+
+
+async def _run_session_cli(prompt: str, agent: AgentDef, config: Config) -> tuple[str, Usage]:
+    """Run one headless session via the ``claude`` CLI (no SDK/API key needed)."""
+    args = [
+        "claude", "-p", prompt,
+        "--output-format", "json",
+        "--append-system-prompt", build_system_prompt(agent, config),
+        "--permission-mode", "acceptEdits",
+    ]
+    if agent.tools:
+        args += ["--allowedTools", ",".join(agent.tools)]
+    if agent.model:
+        args += ["--model", agent.model]
+
+    proc = await asyncio.create_subprocess_exec(
+        *args,
+        cwd=str(config.repo_root),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"claude CLI exited {proc.returncode}: {stderr.decode(errors='replace')}"
+        )
+
+    payload = json.loads(stdout.decode())
+    text = str(payload.get("result", ""))
+    raw_usage = payload.get("usage") or {}
+    usage = Usage(
+        input_tokens=int(raw_usage.get("input_tokens", 0) or 0),
+        output_tokens=int(raw_usage.get("output_tokens", 0) or 0),
+        cache_read_tokens=int(raw_usage.get("cache_read_input_tokens", 0) or 0),
+        cache_creation_tokens=int(raw_usage.get("cache_creation_input_tokens", 0) or 0),
+        cost_usd=float(payload.get("total_cost_usd", 0.0) or 0.0),
+        duration_ms=int(payload.get("duration_ms", 0) or 0),
+        num_turns=int(payload.get("num_turns", 0) or 0),
+        model=agent.model,
+    )
+    return text, usage
 
 
 def _usage_from_message(message: Any) -> Usage | None:

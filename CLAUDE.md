@@ -18,7 +18,8 @@ This project uses an **agent-native Software Development Lifecycle** where speci
 ## Pipeline
 
 ```
-Requirement → product-agent  → PRD.md
+Requirement → codebase-agent → CODEBASE_CONTEXT.md (brownfield repos only)
+             product-agent   → PRD.md
              planner-agent   → PLAN.md
              architect-agent → ADR.md
              [human approval]
@@ -52,6 +53,7 @@ Requirement → product-agent  → PRD.md
 
 All SDLC artifacts are stored in `docs/{issue-name}/`. Pipeline status is derived
 from which of these exist — there is no separate state file:
+- `CODEBASE_CONTEXT.md` — existing stack/conventions/integration points (brownfield repos only)
 - `PRD.md` — requirements with testable ACs
 - `PLAN.md` — phased plan with validation commands
 - `ADR.md` — architecture decisions (binding)

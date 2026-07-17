@@ -55,8 +55,9 @@ async def _run(args: argparse.Namespace) -> int:
     config = load_config()
     if not config.anthropic_api_key:
         print(
-            "[warn] ANTHROPIC_API_KEY not set — falling back to local Claude Code "
-            "credentials (subscription). Use an API key for server/automated runs.",
+            "[warn] ANTHROPIC_API_KEY not set — running nodes via the local `claude` "
+            "CLI under your subscription login instead of the Agent SDK. Use an API "
+            "key for server/automated runs.",
             file=sys.stderr,
         )
 

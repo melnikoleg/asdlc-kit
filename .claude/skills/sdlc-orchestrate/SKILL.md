@@ -1,6 +1,6 @@
 ---
 name: sdlc-orchestrate
-description: Run the agentic SDLC pipeline end-to-end: product-agent → planner-agent → architect-agent → [human approval gate] → developer-agent → reviewer-agent + qa-agent in parallel → fix loop (max 3x) → PRODUCTION_READINESS.md. Use when you want to build a feature from a requirement description all the way to reviewed, production-ready code. Invoke as: /sdlc-orchestrate <issue-name> "<requirement description>"
+description: Run the agentic SDLC pipeline end-to-end: codebase-agent (brownfield scan) → product-agent → planner-agent → architect-agent → [human approval gate] → developer-agent → reviewer-agent + qa-agent in parallel → fix loop (max 3x) → PRODUCTION_READINESS.md. Use when you want to build a feature from a requirement description all the way to reviewed, production-ready code. Invoke as: /sdlc-orchestrate <issue-name> "<requirement description>"
 ---
 
 # SDLC Orchestrate
@@ -17,16 +17,21 @@ There is no STATE.json to maintain.
 1. Validate issue-name: kebab-case, 1-50 chars.
 2. Create `docs/{issue}/`.
 
+### Step 1.5 — Brownfield Scan
+Invoke `codebase-agent` with the requirement text.
+Output: `docs/{issue}/CODEBASE_CONTEXT.md` (stack, conventions, relevant existing
+code, integration points), or a "greenfield" note if the repo has no existing code.
+
 ### Step 2 — Product
-Invoke `product-agent` with the requirement text.
+Invoke `product-agent` with the requirement text + CODEBASE_CONTEXT.md (if present).
 Output: `docs/{issue}/PRD.md` with binary-testable acceptance criteria.
 
 ### Step 3 — Plan
-Invoke `planner-agent` with PRD.md.
+Invoke `planner-agent` with PRD.md + CODEBASE_CONTEXT.md (if present).
 Output: `docs/{issue}/PLAN.md` — phases, each with a runnable validation command.
 
 ### Step 4 — Architect
-Invoke `architect-agent` with PRD.md + PLAN.md.
+Invoke `architect-agent` with PRD.md + PLAN.md + CODEBASE_CONTEXT.md (if present).
 Output: `docs/{issue}/ADR.md`, or a "no ADR needed" note if standard patterns apply.
 
 ### Step 5 — Human Approval Gate ⛔ MANDATORY STOP
@@ -39,7 +44,7 @@ Type "approve" to start implementation, or "cancel" to stop.
 Wait for explicit "approve". Do NOT proceed without it.
 
 ### Step 6 — Implement
-Invoke `developer-agent` with PLAN.md + ADR.md + PRD.md (AC context).
+Invoke `developer-agent` with PLAN.md + ADR.md + PRD.md (AC context) + CODEBASE_CONTEXT.md (if present).
 Output: `docs/{issue}/IMPLEMENTATION.md` (with REAL captured command output) + source files.
 
 ### Step 7 — Parallel Review

@@ -8,7 +8,7 @@ tools: [Read, Write, Glob, Grep]
 # Planner Agent
 
 ## Input (REQUIRED)
-docs/{issue}/PRD.md
+docs/{issue}/PRD.md, + docs/{issue}/CODEBASE_CONTEXT.md if present (reuse existing modules over new ones)
 
 ## Output: docs/{issue}/PLAN.md
 Each phase must include:
