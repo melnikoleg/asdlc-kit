@@ -28,12 +28,16 @@ remain the single source of truth — this package loads them, it does not fork 
 ## Topology
 
 ```
-START → product → planner → architect → approval ⏸(interrupt)
+START → product → planner → architect → acceptance → approval ⏸(interrupt)
       → developer → validate ──fail──▶ developer (fix) | escalate
                           └─pass─▶ [reviewer ‖ qa ‖ devops] → aggregate
-aggregate ──all APPROVED──▶ readiness → END
+aggregate ──all APPROVED──▶ acceptance_gate ──pass──▶ readiness → END
+                                            └─fail─▶ escalate → END
           ──NEEDS_FIX & budget left──▶ developer (fix)
           ──budget exhausted──▶ escalate → END
+
+acceptance authors a held-out suite the developer never reads; acceptance_gate
+grades it deterministically as an objective final check.
 ```
 
 ## Install
@@ -56,6 +60,14 @@ pip install -e '.[dev]'       # tests
 | `ASDLC_SQLITE_PATH` | `.asdlc/checkpoints.sqlite` | SQLite checkpoint file. |
 | `ASDLC_MAX_ITERATIONS` | `3` | Fix-loop budget before escalation. |
 | `ASDLC_REPO_ROOT` | auto-detected | Repo containing `.claude/`. |
+| `ASDLC_MODEL_SMART` | — | Override the model for the **smart** tier (product, planner, architect, reviewer). |
+| `ASDLC_MODEL_WORKER` | — | Override the model for the **worker** tier (developer, qa, devops, acceptance). |
+| `ASDLC_MODEL_<NODE>` | — | Override one agent (e.g. `ASDLC_MODEL_DEVELOPER`). Beats the tier override. |
+
+Model resolution (most specific wins): `ASDLC_MODEL_<NODE>` → tier
+(`ASDLC_MODEL_SMART`/`ASDLC_MODEL_WORKER`) → each agent's frontmatter `model:`.
+Swap a whole mix for one run, then compare cost in `docs/{issue}/METRICS.json` /
+the `## Model Economics` section of `PRODUCTION_READINESS.md`.
 
 ## Usage — CLI
 
