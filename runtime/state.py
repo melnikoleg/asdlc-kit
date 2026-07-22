@@ -19,6 +19,7 @@ Phase = Literal[
     "product",
     "plan",
     "architect",
+    "acceptance",
     "awaiting_approval",
     "implement",
     "validate",
@@ -86,6 +87,8 @@ class PipelineState(TypedDict, total=False):
     # so they use a merge reducer to avoid clobbering each other.
     verdicts: Annotated[dict[str, str], _merge_dict]
     validation: Annotated[dict[str, dict[str, Any]], _merge_dict]
+    # Held-out acceptance results (deterministic, run once by the gate node).
+    acceptance: Annotated[dict[str, dict[str, Any]], _merge_dict]
     # One record per agent run (token/cost/timing), accumulated across the
     # pipeline and fix-loop; mirrored to docs/{issue}/METRICS.json for the dashboard.
     metrics: Annotated[list[dict[str, Any]], _concat]

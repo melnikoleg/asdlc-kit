@@ -114,6 +114,48 @@ def _accumulate(into: dict[str, Any], record: dict[str, Any]) -> None:
         into[f] = into.get(f, 0) + (record.get(f, 0) or 0)
 
 
+def _fmt_cost(value: float) -> str:
+    return f"${value:.4f}"
+
+
+def economics_lines(metrics: list[dict[str, Any]]) -> list[str]:
+    """Render a "Model Economics" markdown block from one issue's metric records.
+
+    Surfaces the article's headline — cost varies with the model mix — right in
+    the readiness report: totals plus a per-agent (agent | model | tokens | cost)
+    table. Aggregation reuses the same accumulation as :func:`summarize`.
+    """
+    totals: dict[str, Any] = {"runs": 0, **_zero_totals()}
+    by_agent: dict[str, dict[str, Any]] = {}
+    models: dict[str, str] = {}
+    for rec in metrics:
+        _accumulate(totals, rec)
+        agent = rec.get("agent", rec.get("node", "unknown"))
+        row = by_agent.setdefault(agent, {"agent": agent, "runs": 0, **_zero_totals()})
+        _accumulate(row, rec)
+        if rec.get("model"):
+            models[agent] = rec["model"]
+
+    if not metrics:
+        return ["- (no usage metrics captured — mock or usage-less run)"]
+
+    lines = [
+        f"- Total cost: {_fmt_cost(totals['cost_usd'])}",
+        f"- Total tokens: {totals['total_tokens']:,}",
+        f"- Agent runs: {totals['runs']}",
+        "",
+        "| Agent | Model | Tokens | Cost |",
+        "|-------|-------|--------|------|",
+    ]
+    for row in sorted(by_agent.values(), key=lambda r: r["total_tokens"], reverse=True):
+        agent = row["agent"]
+        lines.append(
+            f"| {agent} | {models.get(agent, '—')} | "
+            f"{row['total_tokens']:,} | {_fmt_cost(row['cost_usd'])} |"
+        )
+    return lines
+
+
 def summarize(all_metrics: dict[str, list[dict[str, Any]]], docs_root: Path | None = None) -> dict[str, Any]:
     """Aggregate raw records into the shape the dashboard renders.
 

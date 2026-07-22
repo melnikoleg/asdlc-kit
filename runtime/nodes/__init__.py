@@ -7,6 +7,11 @@ built by ``make_route_*`` factories (they close over config for the iteration
 budget).
 """
 
+from .acceptance import (
+    make_acceptance_author_node,
+    make_acceptance_gate_node,
+    make_route_after_acceptance,
+)
 from .aggregate import make_aggregate_node, make_route_after_aggregate
 from .approval import make_approval_node, route_after_approval
 from .architect import make_architect_node
@@ -24,6 +29,9 @@ __all__ = [
     "make_product_node",
     "make_planner_node",
     "make_architect_node",
+    "make_acceptance_author_node",
+    "make_acceptance_gate_node",
+    "make_route_after_acceptance",
     "make_approval_node",
     "route_after_approval",
     "make_developer_node",

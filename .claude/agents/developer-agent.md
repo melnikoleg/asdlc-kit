@@ -27,6 +27,8 @@ Sections:
   existing Fix Round headings + 1) with the issues addressed and fresh validation
   output. This heading is the pipeline's fix-round counter — never overwrite prior rounds.
 - ADR constraints are BINDING — never violate them
+- NEVER read docs/{issue}/ACCEPTANCE.md — it is a held-out acceptance suite
+  graded independently. Implement to the PRD criteria, not to those tests.
 
 ## Return JSON
 {"status":"APPROVED","artifacts":["docs/{issue}/IMPLEMENTATION.md"],"issues":[]}

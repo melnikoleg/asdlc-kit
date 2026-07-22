@@ -29,6 +29,7 @@ _AGENT_COLORS: dict[str, tuple[str, str]] = {
     "product-agent": ("#2a78d6", "#3987e5"),    # blue
     "planner-agent": ("#1baf7a", "#199e70"),    # aqua
     "architect-agent": ("#eda100", "#c98500"),  # yellow
+    "acceptance-agent": ("#0f9b9b", "#12b3b3"), # teal
     "developer-agent": ("#008300", "#008300"),  # green
     "reviewer-agent": ("#4a3aa7", "#9085e9"),   # violet
     "qa-agent": ("#e34948", "#e66767"),         # red
