@@ -9,7 +9,7 @@ credentials the local Claude Code install already holds.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -35,6 +35,13 @@ class Config:
     db_url: str | None
     sqlite_path: Path
     max_iterations: int
+    # Model tiering (agent-swarm economics): a role maps to a tier, a tier to a
+    # concrete model. These env-driven values layer *over* each agent's
+    # frontmatter default so a whole model mix can be swapped for one run and
+    # compared by cost — see runtime.agent_loader.resolve_model.
+    model_smart: str | None = None
+    model_worker: str | None = None
+    model_overrides: dict[str, str] = field(default_factory=dict)
 
     @property
     def agents_dir(self) -> Path:
@@ -79,6 +86,16 @@ def load_config() -> Config:
     if max_iterations < 1:
         raise ValueError(f"ASDLC_MAX_ITERATIONS must be >= 1, got {max_iterations}")
 
+    # Deferred import: agent_loader imports this module, so keep it out of the
+    # module top-level. By call time config is fully loaded, so this is safe.
+    from .agent_loader import AGENT_FILE
+
+    model_overrides = {
+        node: os.environ[f"ASDLC_MODEL_{node.upper()}"]
+        for node in AGENT_FILE
+        if os.environ.get(f"ASDLC_MODEL_{node.upper()}")
+    }
+
     return Config(
         repo_root=repo_root,
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
@@ -86,4 +103,7 @@ def load_config() -> Config:
         db_url=db_url,
         sqlite_path=sqlite_path,
         max_iterations=max_iterations,
+        model_smart=os.environ.get("ASDLC_MODEL_SMART") or None,
+        model_worker=os.environ.get("ASDLC_MODEL_WORKER") or None,
+        model_overrides=model_overrides,
     )

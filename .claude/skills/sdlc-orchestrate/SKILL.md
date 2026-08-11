@@ -34,6 +34,12 @@ Output: `docs/{issue}/PLAN.md` — phases, each with a runnable validation comma
 Invoke `architect-agent` with PRD.md + PLAN.md + CODEBASE_CONTEXT.md (if present).
 Output: `docs/{issue}/ADR.md`, or a "no ADR needed" note if standard patterns apply.
 
+### Step 4.5 — Held-out Acceptance
+Invoke `acceptance-agent` with PRD.md.
+Output: `docs/{issue}/ACCEPTANCE.md` — one runnable `Acceptance: <cmd>` per AC,
+authored BEFORE implementation. The developer must never read it; it is graded
+independently at Step 9 as an objective measure.
+
 ### Step 5 — Human Approval Gate ⛔ MANDATORY STOP
 Show summary:
 ```
@@ -67,8 +73,18 @@ If any verdict is NEEDS_FIX:
 If still failing after 3 iterations:
   Write `docs/{issue}/ESCALATION.md` with remaining blocks, STOP, ask the human to take over.
 
-### Step 9 — Completion
-When reviewer + qa are both APPROVED, write `docs/{issue}/PRODUCTION_READINESS.md`.
+### Step 9 — Held-out Gate + Completion
+When reviewer + qa are both APPROVED, run the held-out suite: execute every
+`Acceptance: <cmd>` from `docs/{issue}/ACCEPTANCE.md` and capture real output.
+- If any check fails: write `docs/{issue}/ESCALATION.md` (held-out failure) and
+  STOP for human takeover — do NOT feed the failing checks back to the developer
+  (that would defeat the held-out property).
+- If all pass (or none authored): write `docs/{issue}/PRODUCTION_READINESS.md`.
+Include a `## Model Economics` section: the model each agent ran on (from its
+`.claude/agents/*.md` frontmatter) and the number of fix rounds (count of
+`## Fix Round` headings in IMPLEMENTATION.md). This makes the model mix and its
+review cost visible at sign-off. If `docs/{issue}/METRICS.json` exists (runtime
+path), summarize total cost and per-agent tokens from it instead.
 
 ## Resume
 Resume is implicit: re-run `/sdlc-orchestrate {issue}` (no requirement needed once
@@ -81,6 +97,8 @@ the first missing one. Run `/sdlc-status {issue}` to see what is present.
 - NEVER run the fix loop more than 3 times — escalate instead
 - NEVER continue if a required input artifact is missing
 - NEVER do phase work yourself — always delegate to the agent
+- NEVER show ACCEPTANCE.md to the developer or feed held-out failures into a fix
+  round — a held-out gate the implementer can see is no longer held out
 
 ## Related Skills
 - /sdlc-plan — planning only (Steps 1-5)

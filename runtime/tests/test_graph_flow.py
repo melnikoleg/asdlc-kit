@@ -41,8 +41,16 @@ def write_plan(config, cmd):
     (docs / "PLAN.md").write_text(f"## Phase 1\nValidation: {cmd}\n")
 
 
-async def drive(config, *, review_fail_times=0, plan_cmd="true", approve=True):
+def write_acceptance(config, cmd):
+    docs = config.docs_for(ISSUE)
+    docs.mkdir(parents=True, exist_ok=True)
+    (docs / "ACCEPTANCE.md").write_text(f"AC-1\nAcceptance: {cmd}\n")
+
+
+async def drive(config, *, review_fail_times=0, plan_cmd="true", approve=True, acceptance_cmd=None):
     write_plan(config, plan_cmd)
+    if acceptance_cmd is not None:
+        write_acceptance(config, acceptance_cmd)
     thread = {"configurable": {"thread_id": f"{ISSUE}-{uuid.uuid4()}"}}
     async with open_checkpointer(config) as cp:
         graph = build_graph(config, runner=mock_runner(review_fail_times), checkpointer=cp)
@@ -111,6 +119,48 @@ async def test_cancel_at_gate_escalates_without_developer(temp_config):
 
 
 @pytest.mark.asyncio
+async def test_heldout_pass_reaches_done(temp_config):
+    out = await drive(temp_config, acceptance_cmd="true")
+    final = out["final"]
+    assert final["phase"] == "done"
+    assert all(r["passed"] for r in final["acceptance"].values())
+
+
+@pytest.mark.asyncio
+async def test_heldout_failure_escalates_without_fix_loop(temp_config):
+    # Review passes, but the held-out suite fails → escalate. The developer is
+    # never re-run against it (iteration stays at 0), so the gate stays held-out.
+    out = await drive(temp_config, acceptance_cmd="false")
+    final = out["final"]
+    assert final["phase"] == "escalated"
+    assert final["iteration"] == 0
+    assert any(not r["passed"] for r in final["acceptance"].values())
+
+
+@pytest.mark.asyncio
+async def test_developer_prompt_never_shows_acceptance(temp_config):
+    seen_prompts = []
+
+    async def spy_runner(node, prompt, config):
+        if node == "developer":
+            seen_prompts.append(prompt)
+        return AgentResult(status="APPROVED", artifacts=[f"docs/{ISSUE}/{node}.md"])
+
+    write_plan(temp_config, "true")
+    write_acceptance(temp_config, "true")
+    thread = {"configurable": {"thread_id": f"{ISSUE}-{uuid.uuid4()}"}}
+    async with open_checkpointer(temp_config) as cp:
+        graph = build_graph(temp_config, runner=spy_runner, checkpointer=cp)
+        await graph.ainvoke(new_state(ISSUE, "build a thing"), thread)
+        await graph.ainvoke(Command(resume="approve"), thread)
+
+    assert seen_prompts, "developer node never ran"
+    for prompt in seen_prompts:
+        assert "ACCEPTANCE.md" in prompt  # the blindness instruction is present
+        assert "NOT read" in prompt
+
+
+@pytest.mark.asyncio
 async def test_state_json_is_mirrored(temp_config):
     await drive(temp_config)
     state_file = temp_config.docs_for(ISSUE) / "STATE.json"
@@ -126,10 +176,11 @@ async def test_state_json_is_mirrored(temp_config):
 async def test_metrics_recorded_for_every_agent(temp_config):
     out = await drive(temp_config)
     final = out["final"]
-    # One metric per agent run: product, planner, architect, developer + 3 reviews.
+    # One metric per agent run: product, planner, architect, acceptance,
+    # developer + 3 reviews.
     agents = {m["agent"] for m in final["metrics"]}
     assert agents == {
-        "product-agent", "planner-agent", "architect-agent",
+        "product-agent", "planner-agent", "architect-agent", "acceptance-agent",
         "developer-agent", "reviewer-agent", "qa-agent", "devops-agent",
     }
     # And the full list is mirrored to METRICS.json.

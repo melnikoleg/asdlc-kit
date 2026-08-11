@@ -6,6 +6,7 @@ from runtime.claude_runner import Usage
 from runtime.metrics import (
     build_metric,
     collect_all,
+    economics_lines,
     load_metrics,
     summarize,
     write_metrics,
@@ -76,3 +77,22 @@ def test_collect_all_and_summarize(tmp_path):
 
 def test_collect_all_missing_docs_dir(tmp_path):
     assert collect_all(tmp_path / "nope") == {}
+
+
+def test_economics_lines_reports_cost_and_mix():
+    metrics = [
+        build_metric("planner", "APPROVED", Usage(input_tokens=100, output_tokens=50, cost_usd=0.08, model="claude-opus-4-8"), 0),
+        build_metric("developer", "APPROVED", Usage(input_tokens=300, output_tokens=100, cost_usd=0.02, model="claude-sonnet-4-6"), 0),
+    ]
+    block = "\n".join(economics_lines(metrics))
+    assert "Total cost: $0.1000" in block
+    assert "Total tokens: 550" in block
+    # per-agent model mix is visible
+    assert "planner-agent" in block and "claude-opus-4-8" in block
+    assert "developer-agent" in block and "claude-sonnet-4-6" in block
+    # developer has more tokens -> ranked first
+    assert block.index("developer-agent") < block.index("planner-agent")
+
+
+def test_economics_lines_empty():
+    assert economics_lines([]) == ["- (no usage metrics captured — mock or usage-less run)"]

@@ -15,12 +15,19 @@ from ..state import PipelineState
 from ._common import Runner, base_update
 
 
+_HELD_OUT_NOTE = (
+    "Do NOT read docs/{issue}/ACCEPTANCE.md — it is a held-out acceptance suite "
+    "graded independently. Implement to the PRD criteria, not to those tests."
+)
+
+
 def _normal_prompt(issue: str) -> str:
     return (
         f"Issue: {issue}\n"
         f"Implement docs/{issue}/PLAN.md following docs/{issue}/ADR.md constraints "
         f"and docs/{issue}/PRD.md acceptance criteria. Write code files and "
-        f"docs/{issue}/IMPLEMENTATION.md. End with your JSON verdict."
+        f"docs/{issue}/IMPLEMENTATION.md. {_HELD_OUT_NOTE.format(issue=issue)} "
+        f"End with your JSON verdict."
     )
 
 
@@ -34,6 +41,7 @@ def _fix_prompt(issue: str, failing: list[str]) -> str:
         f"FIX MODE. Failing agents: {', '.join(failing) or 'unknown'}.\n"
         f"Read {sources} and address ONLY the blocking issues listed there. "
         f"Do not change unrelated files. Re-run validation. "
+        f"{_HELD_OUT_NOTE.format(issue=issue)} "
         f"Update docs/{issue}/IMPLEMENTATION.md. End with your JSON verdict."
     )
 

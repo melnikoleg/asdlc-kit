@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import Config
+from ..metrics import economics_lines
 from ..state import PipelineState, now_iso
 from ._common import base_update
 
@@ -27,6 +28,12 @@ def make_readiness_node(config: Config):
             "## Validation Evidence",
             *_validation_lines(state),
             "",
+            "## Held-out Acceptance",
+            *_acceptance_lines(state),
+            "",
+            "## Model Economics",
+            *economics_lines(state.get("metrics", [])),
+            "",
             "## Artifacts",
             *[f"- {a}" for a in state.get("artifacts", [])],
             "",
@@ -48,3 +55,15 @@ def _validation_lines(state: PipelineState) -> list[str]:
         mark = "PASS" if res.get("passed") else "FAIL"
         out.append(f"- `{cmd}` → {mark} (exit {res.get('exit_code')})")
     return out or ["- (no validation commands found in PLAN.md)"]
+
+
+def _acceptance_lines(state: PipelineState) -> list[str]:
+    """Objective held-out result: readiness is only reached when all pass."""
+    acceptance = state.get("acceptance", {})
+    if not acceptance:
+        return ["- (no held-out acceptance checks authored)"]
+    passed = sum(1 for r in acceptance.values() if r.get("passed"))
+    return [f"- Held-out checks: {passed}/{len(acceptance)} passed"] + [
+        f"- `{cmd}` → {'PASS' if res.get('passed') else 'FAIL'}"
+        for cmd, res in acceptance.items()
+    ]

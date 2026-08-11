@@ -27,14 +27,15 @@ _DENY_PATTERNS = (
     "dd if=",
 )
 
-_INLINE_RE = re.compile(r"^\s*[-*]?\s*Validation:\s*(.+?)\s*$", re.MULTILINE)
+_INLINE_RE = re.compile(r"^\s*[-*]?\s*(?:Validation|Acceptance):\s*(.+?)\s*$", re.MULTILINE)
 
 
 def parse_validation_commands(plan_text: str) -> list[str]:
-    """Extract validation commands from PLAN.md.
+    """Extract runnable commands from PLAN.md / ACCEPTANCE.md.
 
-    Supports inline ``Validation: <cmd>`` (optionally wrapped in backticks).
-    Returns commands in document order, de-duplicated.
+    Supports inline ``Validation: <cmd>`` (PLAN.md) and ``Acceptance: <cmd>``
+    (the held-out ACCEPTANCE.md), optionally wrapped in backticks. Returns
+    commands in document order, de-duplicated.
     """
     commands: list[str] = []
     for match in _INLINE_RE.finditer(plan_text):

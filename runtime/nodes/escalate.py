@@ -10,6 +10,7 @@ from typing import Any
 
 from ..config import Config
 from ..state import PipelineState, now_iso
+from ..validation import all_passed
 from ._common import base_update
 
 
@@ -19,11 +20,18 @@ def make_escalate_node(config: Config):
         docs = config.docs_for(issue)
         docs.mkdir(parents=True, exist_ok=True)
         cancelled = not state.get("approved", False) and state.get("iteration", 0) == 0
-        reason = (
-            "Human cancelled at the approval gate."
-            if cancelled
-            else f"Fix-loop budget exhausted after {state.get('iteration', 0)} iteration(s)."
-        )
+        acceptance = state.get("acceptance", {})
+        held_out_failed = bool(acceptance) and not all_passed(acceptance)
+        if cancelled:
+            reason = "Human cancelled at the approval gate."
+        elif held_out_failed:
+            failed = [c for c, r in acceptance.items() if not r.get("passed")]
+            reason = (
+                "Held-out acceptance gate failed "
+                f"({len(failed)}/{len(acceptance)} checks failing)."
+            )
+        else:
+            reason = f"Fix-loop budget exhausted after {state.get('iteration', 0)} iteration(s)."
         lines = [
             f"# Escalation — {issue}",
             "",

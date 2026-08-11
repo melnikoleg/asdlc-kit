@@ -21,10 +21,26 @@ AGENT_FILE = {
     "product": "product-agent",
     "planner": "planner-agent",
     "architect": "architect-agent",
+    "acceptance": "acceptance-agent",
     "developer": "developer-agent",
     "reviewer": "reviewer-agent",
     "qa": "qa-agent",
     "devops": "devops-agent",
+}
+
+# Role -> cost tier (agent-swarm economics). Planning and judgment run on the
+# "smart" tier; production/execution runs on the cheaper "worker" tier. A tier
+# only takes effect when the matching model env var is set (see resolve_model);
+# otherwise each agent keeps its frontmatter model.
+NODE_TIER = {
+    "product": "smart",
+    "planner": "smart",
+    "architect": "smart",
+    "reviewer": "smart",
+    "acceptance": "worker",
+    "developer": "worker",
+    "qa": "worker",
+    "devops": "worker",
 }
 
 
@@ -87,6 +103,25 @@ def _read_rules_context(rules_dir_str: str, claude_md_str: str) -> str:
     return "\n\n---\n\n".join(parts)
 
 
+def resolve_model(node: str, frontmatter_model: str | None, config: Config) -> str | None:
+    """Resolve the model for ``node``, most-specific override winning.
+
+    Precedence: per-node env override (``ASDLC_MODEL_<NODE>``) → tier default
+    (``ASDLC_MODEL_SMART`` / ``ASDLC_MODEL_WORKER`` via :data:`NODE_TIER`) →
+    the agent's frontmatter ``model:``. This is the single seam that lets a
+    whole model mix be swapped for one run without editing agent files.
+    """
+    override = config.model_overrides.get(node)
+    if override:
+        return override
+    tier = NODE_TIER.get(node)
+    if tier == "smart" and config.model_smart:
+        return config.model_smart
+    if tier == "worker" and config.model_worker:
+        return config.model_worker
+    return frontmatter_model
+
+
 def load_agent(node: str, config: Config) -> AgentDef:
     stem = AGENT_FILE.get(node, f"{node}-agent")
     path = config.agents_dir / f"{stem}.md"
@@ -95,7 +130,7 @@ def load_agent(node: str, config: Config) -> AgentDef:
     fm, body = _split_frontmatter(path.read_text(encoding="utf-8"))
     return AgentDef(
         name=fm.get("name", stem),
-        model=fm.get("model") or None,
+        model=resolve_model(node, fm.get("model") or None, config),
         tools=_parse_tools(fm.get("tools")),
         body=body,
     )
