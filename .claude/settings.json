@@ -24,6 +24,8 @@
       "Bash(cp*)",
       "Bash(mv*)",
       "Bash(curl -s*)",
+      "Bash(asdlc-e2e*)",
+      "Bash(asdlc-runtime*)",
       "Bash(npm audit*)",
       "Bash(pip-audit*)"
     ]

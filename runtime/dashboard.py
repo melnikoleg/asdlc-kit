@@ -26,6 +26,7 @@ from .metrics import collect_all, summarize
 
 # Fixed categorical slot per agent (identity colour, never reordered). (light, dark)
 _AGENT_COLORS: dict[str, tuple[str, str]] = {
+    "codebase-agent": ("#b8651b", "#d98a45"),   # orange
     "product-agent": ("#2a78d6", "#3987e5"),    # blue
     "planner-agent": ("#1baf7a", "#199e70"),    # aqua
     "architect-agent": ("#eda100", "#c98500"),  # yellow

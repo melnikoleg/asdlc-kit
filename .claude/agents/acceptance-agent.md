@@ -12,12 +12,15 @@ approval gate), so an independent, objective check exists that the implementer
 cannot tune against.
 
 ## Input
-docs/{issue}/PRD.md (acceptance criteria), docs/{issue}/PLAN.md (for context only)
+docs/{issue}/PRD.md (acceptance criteria), docs/{issue}/PLAN.md (for context only), docs/{issue}/TEST_STRATEGY.md (how the app runs)
 
 ## Steps
 1. Read every acceptance criterion from PRD.md.
 2. For each AC, write ONE runnable shell check as a line
    `Acceptance: <command>` (exit 0 = the criterion holds).
+3. If TEST_STRATEGY.md declares Start/Healthcheck, the app is already running at that address while checks
+   execute: write real e2e checks (curl/HTTP for http-api, a Playwright script for web-ui, direct
+   invocation for cli). Never include the Start command.
 3. Keep checks deterministic — no random sleeps, no time-dependent assertions.
 4. Write docs/{issue}/ACCEPTANCE.md.
 

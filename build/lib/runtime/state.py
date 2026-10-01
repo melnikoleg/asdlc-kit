@@ -1,0 +1,152 @@
+"""Pipeline state — typed, code-owned, checkpointed by LangGraph.
+
+Unlike the native pipeline (which derives status from artifact presence),
+every field here is written by graph node code. A small snapshot is mirrored
+to ``docs/{issue}/STATE.json`` for observability — its only in-repo consumer
+is the metrics dashboard (``runtime.metrics._phase_of``), which reads the
+current phase per issue.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Annotated, Any, Literal, TypedDict
+
+Phase = Literal[
+    "codebase",
+    "product",
+    "plan",
+    "architect",
+    "acceptance",
+    "awaiting_approval",
+    "implement",
+    "validate",
+    "review",
+    "fix",
+    "done",
+    "escalated",
+]
+
+# Agents that run in the parallel review fan-out.
+REVIEW_AGENTS = ("reviewer", "qa", "devops")
+
+
+def review_agents(state: "PipelineState") -> tuple[str, ...]:
+    """Review fan-out for this run: devops joins only when opted in."""
+    return REVIEW_AGENTS if state.get("devops") else REVIEW_AGENTS[:2]
+
+# An issue name becomes both the durable thread id and a path segment
+# (``docs/{issue}/``). Restricting it to a kebab/snake slug keeps it from
+# escaping the docs directory (path traversal) or colliding across pipelines.
+_ISSUE_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,99}$")
+
+
+def validate_issue(issue: str) -> str:
+    """Return ``issue`` if it is a safe slug, else raise ``ValueError``.
+
+    This is a trust boundary: the issue arrives from the CLI/HTTP caller and is
+    used unescaped as a filesystem path segment, so it must never contain path
+    separators, ``..``, or whitespace.
+    """
+    if not isinstance(issue, str) or not _ISSUE_RE.match(issue) or ".." in issue:
+        raise ValueError(
+            "issue must be a slug matching [a-z0-9._-] (1-100 chars), "
+            f"with no path separators or '..'; got {issue!r}"
+        )
+    return issue
+
+
+def _merge_dict(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
+    """Reducer: shallow-merge dict updates from concurrent (fan-out) nodes."""
+    merged = dict(left)
+    merged.update(right)
+    return merged
+
+
+def _append_unique(left: list[str], right: list[str]) -> list[str]:
+    """Reducer: union-append, preserving order. Safe for concurrent fan-out writes."""
+    merged = list(left)
+    for item in right:
+        if item not in merged:
+            merged.append(item)
+    return merged
+
+
+def _concat(left: list[Any], right: list[Any]) -> list[Any]:
+    """Reducer: append all (duplicates kept). Each agent run is its own metric,
+    so re-runs across fix iterations accumulate rather than de-duplicating."""
+    return list(left) + list(right)
+
+
+class PipelineState(TypedDict, total=False):
+    issue: str
+    requirement: str
+    phase: Phase
+    iteration: int
+    approved: bool
+    devops: bool
+    failing_agents: list[str]
+    artifacts: Annotated[list[str], _append_unique]
+    # verdicts and validation are written concurrently by fan-out nodes,
+    # so they use a merge reducer to avoid clobbering each other.
+    verdicts: Annotated[dict[str, str], _merge_dict]
+    validation: Annotated[dict[str, dict[str, Any]], _merge_dict]
+    # Held-out acceptance results (deterministic, run once by the gate node).
+    acceptance: Annotated[dict[str, dict[str, Any]], _merge_dict]
+    # One record per agent run (token/cost/timing), accumulated across the
+    # pipeline and fix-loop; mirrored to docs/{issue}/METRICS.json for the dashboard.
+    metrics: Annotated[list[dict[str, Any]], _concat]
+    started_at: str
+    updated_at: str
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def new_state(issue: str, requirement: str, devops: bool = False) -> PipelineState:
+    issue = validate_issue(issue)
+    if not requirement or not requirement.strip():
+        raise ValueError("requirement must be a non-empty string")
+    ts = now_iso()
+    return PipelineState(
+        issue=issue,
+        requirement=requirement,
+        phase="codebase",
+        iteration=0,
+        approved=False,
+        devops=devops,
+        failing_agents=[],
+        artifacts=[],
+        verdicts={},
+        validation={},
+        metrics=[],
+        started_at=ts,
+        updated_at=ts,
+    )
+
+
+# Fields mirrored into STATE.json (the dashboard reads "phase" from it;
+# the rest is for humans inspecting a run).
+_STATE_JSON_FIELDS = (
+    "issue",
+    "phase",
+    "iteration",
+    "failing_agents",
+    "artifacts",
+    "started_at",
+    "updated_at",
+)
+
+
+def mirror_to_disk(state: PipelineState, docs_dir: Path) -> Path:
+    """Write the STATE.json observability snapshot for an issue."""
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    payload = {k: state.get(k) for k in _STATE_JSON_FIELDS}
+    payload["updated_at"] = now_iso()
+    target = docs_dir / "STATE.json"
+    target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return target

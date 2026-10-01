@@ -21,6 +21,6 @@ Add agent: create .claude/agents/{name}-agent.md, wire it into the relevant skil
 add its artifact to the CLAUDE.md table, add a schema check to validate-artifact-schema.sh.
 
 ## Deliberately Kept Simple
-- No STATE.json state machine — status is derived from which artifacts exist.
+- State lives in the runtime (LangGraph checkpoint); docs/{issue}/STATE.json is a read-only mirror.
 - DevOps (Docker/CI) is opt-in via /sdlc-deploy, not run on every feature.
 - One source of truth per guardrail (hooks), not duplicated in permissions.

@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from runtime.state import mirror_to_disk, new_state, validate_issue
+from runtime.state import REVIEW_AGENTS, mirror_to_disk, new_state, review_agents, validate_issue
 
 
 @pytest.mark.parametrize("issue", ["auth-api", "todo_api", "feature.42", "a", "x" * 100])
@@ -40,7 +40,8 @@ def test_new_state_validates_issue_and_requirement():
         new_state("good-issue", "   ")  # blank requirement
     state = new_state("good-issue", "build a thing")
     assert state["issue"] == "good-issue"
-    assert state["phase"] == "product"
+    assert state["phase"] == "codebase"
+    assert state["devops"] is False
 
 
 def test_mirror_to_disk_writes_native_schema(tmp_path):
@@ -48,5 +49,10 @@ def test_mirror_to_disk_writes_native_schema(tmp_path):
     target = mirror_to_disk(state, tmp_path)
     data = json.loads(target.read_text())
     assert data["issue"] == "demo"
-    assert data["phase"] == "product"
+    assert data["phase"] == "codebase"
     assert "updated_at" in data
+
+
+def test_review_agents_devops_is_opt_in():
+    assert review_agents(new_state("d", "x")) == ("reviewer", "qa")
+    assert review_agents(new_state("d", "x", devops=True)) == REVIEW_AGENTS

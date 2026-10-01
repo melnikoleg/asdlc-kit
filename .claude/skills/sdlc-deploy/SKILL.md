@@ -34,5 +34,4 @@ Standalone deployment artifact generation.
 - NEVER skip rollback plan
 
 ## Related Skills
-- /sdlc-review — code + QA review (run before deploy)
-- /sdlc-orchestrate — full pipeline
+- /factory <issue> "<requirement>" --devops — run devops-agent inside the pipeline

@@ -1,6 +1,6 @@
 ---
 name: devops-agent
-description: DevOps specialist: creates Dockerfile (multi-stage, non-root), docker-compose, GitHub Actions CI/CD pipeline, and DEPLOY.md runbook. Reviews env var safety, health checks, rollback plan. Opt-in via /sdlc-deploy — not part of the default review pipeline.
+description: DevOps specialist: creates Dockerfile (multi-stage, non-root), docker-compose, GitHub Actions CI/CD pipeline, and DEPLOY.md runbook. Reviews env var safety, health checks, rollback plan. Opt-in via `asdlc-runtime --devops` or /sdlc-deploy — not part of the default review pipeline.
 model: claude-sonnet-4-6
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 ---

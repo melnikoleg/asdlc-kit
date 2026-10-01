@@ -4,7 +4,7 @@ Switching backend is an env change (``CHECKPOINT_BACKEND``), not a code change
 — the graph wiring is identical. The checkpointer is what makes the approval
 ``interrupt()`` and durable resume work.
 
-Pipeline nodes are async (they call the Claude Agent SDK), so the graph runs
+Pipeline nodes are async (they shell out to ``claude -p``), so the graph runs
 async and needs an async-capable saver. Both backends are exposed as async
 context managers via :func:`open_checkpointer`::
 

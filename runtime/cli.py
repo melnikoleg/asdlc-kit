@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import shutil
 import sys
 
 from langgraph.types import Command
@@ -53,13 +54,9 @@ def _print_final(state: dict) -> None:
 
 async def _run(args: argparse.Namespace) -> int:
     config = load_config()
-    if not config.anthropic_api_key:
-        print(
-            "[warn] ANTHROPIC_API_KEY not set — running nodes via the local `claude` "
-            "CLI under your subscription login instead of the Agent SDK. Use an API "
-            "key for server/automated runs.",
-            file=sys.stderr,
-        )
+    if not shutil.which("claude"):
+        print("error: `claude` CLI not found on PATH - install Claude Code", file=sys.stderr)
+        return 2
 
     thread = {"configurable": {"thread_id": args.issue}}
     async with open_checkpointer(config) as cp:
@@ -75,7 +72,7 @@ async def _run(args: argparse.Namespace) -> int:
                 print("error: a requirement is required to start a pipeline", file=sys.stderr)
                 return 2
             try:
-                initial = new_state(args.issue, args.requirement)
+                initial = new_state(args.issue, args.requirement, devops=args.devops)
             except ValueError as exc:
                 print(f"error: {exc}", file=sys.stderr)
                 return 2
@@ -91,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="runtime.cli", description="Run the SDLC pipeline.")
     parser.add_argument("issue", help="kebab-case issue name (also the resume thread id)")
     parser.add_argument("requirement", nargs="?", help="requirement text (to start a pipeline)")
+    parser.add_argument("--devops", action="store_true", help="also run devops-agent (Docker/CI)")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--approve", action="store_true", help="approve a paused pipeline")
     group.add_argument("--cancel", action="store_true", help="cancel a paused pipeline")
