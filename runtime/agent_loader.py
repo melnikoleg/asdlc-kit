@@ -18,6 +18,7 @@ from .config import Config
 # matching .claude/agents/<stem>.md (enforced by test_every_agent_loads); the
 # graph orchestrates these agents, there is no separate "orchestrator" agent.
 AGENT_FILE = {
+    "codebase": "codebase-agent",
     "product": "product-agent",
     "planner": "planner-agent",
     "architect": "architect-agent",
@@ -33,6 +34,7 @@ AGENT_FILE = {
 # only takes effect when the matching model env var is set (see resolve_model);
 # otherwise each agent keeps its frontmatter model.
 NODE_TIER = {
+    "codebase": "worker",
     "product": "smart",
     "planner": "smart",
     "architect": "smart",

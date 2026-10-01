@@ -1,14 +1,13 @@
 [project]
 name = "asdlc-runtime"
 version = "0.1.0"
-description = "LangGraph orchestrator for the Agentic SDLC Kit, executing Claude Code agents via the Claude Agent SDK"
+description = "LangGraph orchestrator for the Agentic SDLC Kit, running Claude Code agents through `claude -p`"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "langgraph>=0.2.0",
     "langgraph-checkpoint-sqlite>=2.0.0",
     "aiosqlite>=0.19",
-    "claude-agent-sdk>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +18,7 @@ dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
 [project.scripts]
 asdlc-runtime = "runtime.cli:main"
 asdlc-dashboard = "runtime.dashboard:main"
+asdlc-e2e = "runtime.validation:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -26,6 +26,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["runtime*"]
+exclude = ["runtime.tests*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

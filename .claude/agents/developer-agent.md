@@ -19,6 +19,11 @@ Sections:
 - Validation Evidence: for each PLAN phase (command | ACTUAL terminal output | PASS/FAIL)
 - Known Limitations
 
+## E2E
+Make every `E2E:` command in docs/{issue}/TEST_STRATEGY.md pass. Run it with
+`asdlc-e2e {issue} -- <command>`: it boots the app (Start/Healthcheck), runs the command, stops the app.
+Fix mode: the prompt lists failed commands with their output; fix those.
+
 ## Rules
 - Run EVERY validation command from PLAN.md
 - Capture REAL output — fabrication is prohibited

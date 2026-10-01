@@ -26,20 +26,35 @@ def _normal_prompt(issue: str) -> str:
         f"Issue: {issue}\n"
         f"Implement docs/{issue}/PLAN.md following docs/{issue}/ADR.md constraints "
         f"and docs/{issue}/PRD.md acceptance criteria. Write code files and "
-        f"docs/{issue}/IMPLEMENTATION.md. {_HELD_OUT_NOTE.format(issue=issue)} "
+        f"docs/{issue}/IMPLEMENTATION.md. Make every `E2E:` command in "
+        f"docs/{issue}/TEST_STRATEGY.md pass; run them with "
+        f"`asdlc-e2e {issue} -- <command>`, which boots the app first. "
+        f"{_HELD_OUT_NOTE.format(issue=issue)} "
         f"End with your JSON verdict."
     )
 
 
-def _fix_prompt(issue: str, failing: list[str]) -> str:
+def _fix_prompt(
+    issue: str,
+    failing: list[str],
+    validation: dict[str, dict[str, Any]],
+    config: Config,
+) -> str:
+    docs = config.docs_for(issue)
     sources = " and ".join(
-        f"docs/{issue}/{name}.md"
-        for name in ("REVIEW", "QA")
+        f"docs/{issue}/{name}.md" for name in ("REVIEW", "QA") if (docs / f"{name}.md").is_file()
+    )
+    failed = "".join(
+        f"\n$ {r['command']}\n{str(r.get('output', ''))[-1500:]}\n"
+        for r in validation.values()
+        if not r.get("passed")
     )
     return (
         f"Issue: {issue}\n"
         f"FIX MODE. Failing agents: {', '.join(failing) or 'unknown'}.\n"
-        f"Read {sources} and address ONLY the blocking issues listed there. "
+        + (f"Failed validation/e2e commands:{failed}\n" if failed else "")
+        + (f"Read {sources} and address ONLY the blocking issues listed there. " if sources else "")
+        + f"Address ONLY these blocking issues. "
         f"Do not change unrelated files. Re-run validation. "
         f"{_HELD_OUT_NOTE.format(issue=issue)} "
         f"Update docs/{issue}/IMPLEMENTATION.md. End with your JSON verdict."
@@ -51,7 +66,7 @@ def make_developer_node(config: Config, runner: Runner):
         issue = state["issue"]
         fix_mode = state.get("iteration", 0) > 0
         if fix_mode:
-            prompt = _fix_prompt(issue, state.get("failing_agents", []))
+            prompt = _fix_prompt(issue, state.get("failing_agents", []), state.get("validation", {}), config)
             phase = "fix"
         else:
             prompt = _normal_prompt(issue)

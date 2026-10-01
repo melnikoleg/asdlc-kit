@@ -1,21 +1,18 @@
-"""Bridge to Claude Code via the Claude Agent SDK, or the raw CLI as fallback.
+"""Bridge to Claude Code via headless ``claude -p``.
 
-Each generative graph node calls :func:`run_agent`, which launches a headless
-Claude Code session configured from the agent's ``.claude/agents/*.md``
+Each generative graph node calls :func:`run_agent`, which launches one
+``claude -p`` session configured from the agent's ``.claude/agents/*.md``
 definition. We run with ``cwd = repo_root`` so guardrails (``.claude/settings.json``
 hooks) stay enforced in one place rather than being duplicated in Python.
-
-When ``config.anthropic_api_key`` is set we use the Claude Agent SDK (imported
-lazily so the rest of the package works without it installed). When no key is
-set, sessions run under the developer's local Claude Code subscription login;
-the SDK still works there, but we instead shell out to ``claude -p`` directly
-so this path has no dependency on the ``claude-agent-sdk`` pip package.
+Auth is whatever the local ``claude`` login already holds.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import os
+import sys
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -28,10 +25,10 @@ VALID_STATUSES = {"APPROVED", "NEEDS_FIX", "FAILED"}
 
 @dataclass
 class Usage:
-    """Real token/cost/timing usage captured from the SDK ``ResultMessage``.
+    """Real token/cost/timing usage captured from ``claude -p --output-format json``.
 
     Feeds the metrics dashboard; all fields default to zero so a mock runner (or
-    an SDK version that omits usage) degrades gracefully to a no-cost record.
+    a payload that omits usage) degrades gracefully to a no-cost record.
     """
 
     input_tokens: int = 0
@@ -127,42 +124,33 @@ def _json_objects(text: str):
                 yield text[start : i + 1]
 
 
-async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[str, Usage]:
-    """Run one headless Claude Code session; return (assistant text, usage).
+def _usage_from_payload(payload: dict[str, Any], model: str | None) -> Usage:
+    raw = payload.get("usage") or {}
 
-    Dispatches to the Agent SDK when an API key is configured, otherwise to a
-    raw ``claude -p`` subprocess running under the local subscription login.
-    """
-    if config.anthropic_api_key:
-        return await _run_session_sdk(prompt, agent, config)
-    return await _run_session_cli(prompt, agent, config)
+    def _int(key: str) -> int:
+        return int(raw.get(key, 0) or 0)
 
-
-async def _run_session_sdk(prompt: str, agent: AgentDef, config: Config) -> tuple[str, Usage]:
-    from claude_agent_sdk import ClaudeAgentOptions, query  # lazy import
-
-    options = ClaudeAgentOptions(
-        system_prompt=build_system_prompt(agent, config),
-        allowed_tools=list(agent.tools),
-        permission_mode="acceptEdits",
-        cwd=str(config.repo_root),
-        model=agent.model,
-        # Load the project's settings (hooks) so guardrails stay active.
-        setting_sources=["project"],
+    return Usage(
+        input_tokens=_int("input_tokens"),
+        output_tokens=_int("output_tokens"),
+        cache_read_tokens=_int("cache_read_input_tokens"),
+        cache_creation_tokens=_int("cache_creation_input_tokens"),
+        cost_usd=float(payload.get("total_cost_usd", 0.0) or 0.0),
+        duration_ms=int(payload.get("duration_ms", 0) or 0),
+        num_turns=int(payload.get("num_turns", 0) or 0),
+        model=model,
     )
 
-    chunks: list[str] = []
-    usage = Usage(model=agent.model)
-    async for message in query(prompt=prompt, options=options):
-        chunks.append(_message_text(message))
-        message_usage = _usage_from_message(message)
-        if message_usage is not None:
-            usage = usage.merge(message_usage)
-    return "".join(c for c in chunks if c), usage
+
+def _env_with_runtime_bin() -> dict[str, str]:
+    """Put this interpreter's bin dir on PATH so agents can call ``asdlc-e2e``."""
+    env = dict(os.environ)
+    env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env.get("PATH", "")
+    return env
 
 
-async def _run_session_cli(prompt: str, agent: AgentDef, config: Config) -> tuple[str, Usage]:
-    """Run one headless session via the ``claude`` CLI (no SDK/API key needed)."""
+async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[str, Usage]:
+    """Run one headless ``claude -p`` session; return (assistant text, usage)."""
     args = [
         "claude", "-p", prompt,
         "--output-format", "json",
@@ -174,78 +162,29 @@ async def _run_session_cli(prompt: str, agent: AgentDef, config: Config) -> tupl
     if agent.model:
         args += ["--model", agent.model]
 
-    proc = await asyncio.create_subprocess_exec(
-        *args,
-        cwd=str(config.repo_root),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *args,
+            cwd=str(config.repo_root),
+            env=_env_with_runtime_bin(),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        raise RuntimeError("claude CLI not found on PATH - install Claude Code") from None
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
         raise RuntimeError(
             f"claude CLI exited {proc.returncode}: {stderr.decode(errors='replace')}"
         )
 
-    payload = json.loads(stdout.decode())
-    text = str(payload.get("result", ""))
-    raw_usage = payload.get("usage") or {}
-    usage = Usage(
-        input_tokens=int(raw_usage.get("input_tokens", 0) or 0),
-        output_tokens=int(raw_usage.get("output_tokens", 0) or 0),
-        cache_read_tokens=int(raw_usage.get("cache_read_input_tokens", 0) or 0),
-        cache_creation_tokens=int(raw_usage.get("cache_creation_input_tokens", 0) or 0),
-        cost_usd=float(payload.get("total_cost_usd", 0.0) or 0.0),
-        duration_ms=int(payload.get("duration_ms", 0) or 0),
-        num_turns=int(payload.get("num_turns", 0) or 0),
-        model=agent.model,
-    )
-    return text, usage
-
-
-def _usage_from_message(message: Any) -> Usage | None:
-    """Extract token/cost/timing from an SDK ``ResultMessage`` (best-effort)."""
-    raw = getattr(message, "usage", None)
-    cost = getattr(message, "total_cost_usd", None)
-    duration = getattr(message, "duration_ms", None)
-    turns = getattr(message, "num_turns", None)
-    if raw is None and cost is None and duration is None:
-        return None
-    raw = raw if isinstance(raw, dict) else {}
-
-    def _int(key: str) -> int:
-        try:
-            return int(raw.get(key, 0) or 0)
-        except (TypeError, ValueError):
-            return 0
-
-    return Usage(
-        input_tokens=_int("input_tokens"),
-        output_tokens=_int("output_tokens"),
-        cache_read_tokens=_int("cache_read_input_tokens"),
-        cache_creation_tokens=_int("cache_creation_input_tokens"),
-        cost_usd=float(cost or 0.0),
-        duration_ms=int(duration or 0),
-        num_turns=int(turns or 0),
-    )
-
-
-def _message_text(message: Any) -> str:
-    """Best-effort text extraction across SDK message types/versions."""
-    # ResultMessage exposes a final `.result` string.
-    result = getattr(message, "result", None)
-    if isinstance(result, str):
-        return result
-    content = getattr(message, "content", None)
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        out: list[str] = []
-        for block in content:
-            block_text = getattr(block, "text", None)
-            if isinstance(block_text, str):
-                out.append(block_text)
-        return "".join(out)
-    return ""
+    try:
+        payload = json.loads(stdout.decode())
+    except json.JSONDecodeError:
+        raise RuntimeError(
+            f"claude CLI returned non-JSON output: {stdout.decode(errors='replace')[-500:]}"
+        ) from None
+    return str(payload.get("result", "")), _usage_from_payload(payload, agent.model)
 
 
 async def run_agent(node: str, prompt: str, config: Config) -> AgentResult:

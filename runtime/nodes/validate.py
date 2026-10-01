@@ -1,6 +1,7 @@
 """Deterministic validation gate node + routing.
 
-Runs the PLAN.md validation commands (real subprocess output). On pass →
+Runs the PLAN.md validation commands, then the TEST_STRATEGY.md ``E2E:`` commands
+against the booted app (real subprocess output). On pass →
 parallel review fan-out. On fail → back to the developer in fix mode, unless
 the iteration budget is exhausted, in which case → escalate.
 """
@@ -10,8 +11,8 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import Config
-from ..state import REVIEW_AGENTS, PipelineState, now_iso
-from ..validation import all_passed, run_validation
+from ..state import PipelineState, now_iso, review_agents
+from ..validation import all_passed, load_strategy, run_validation, run_with_app
 from ._common import base_update
 
 
@@ -20,6 +21,11 @@ def make_validate_node(config: Config):
         issue = state["issue"]
         plan_path = config.docs_for(issue) / "PLAN.md"
         results = run_validation(plan_path, config.repo_root)
+        if all_passed(results):
+            # E2E runs only once the cheap checks pass, against a really-booted app.
+            strategy = load_strategy(config.docs_for(issue) / "TEST_STRATEGY.md")
+            if strategy.get("E2E"):
+                results.update(run_with_app(strategy["E2E"], strategy, config.repo_root))
         passed = all_passed(results)
 
         update = base_update(state, "validate", config)
@@ -41,7 +47,7 @@ def make_route_after_validate(config: Config):
 
     def _route(state: PipelineState):
         if all_passed(state.get("validation", {})):
-            return list(REVIEW_AGENTS)
+            return list(review_agents(state))
         if state.get("iteration", 0) > config.max_iterations:
             return "escalate"
         return "developer"

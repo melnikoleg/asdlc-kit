@@ -18,7 +18,7 @@ from typing import Any
 from ..config import Config
 from ..metrics import build_metric
 from ..state import PipelineState
-from ..validation import all_passed, run_validation
+from ..validation import all_passed, load_strategy, parse_fields, run_with_app
 from ._common import Runner, base_update
 
 ACCEPTANCE_FILE = "ACCEPTANCE.md"
@@ -33,6 +33,10 @@ def _author_prompt(issue: str) -> str:
         f"docs/{issue}/{ACCEPTANCE_FILE} (exit 0 = the criterion holds). "
         f"This suite is graded automatically and the developer must NOT see it: "
         f"do not place these commands in PLAN.md, IMPLEMENTATION.md, or any code. "
+        f"Read docs/{issue}/TEST_STRATEGY.md: if it declares a Start/Healthcheck, "
+        f"the app is already running at that address while your checks execute, so "
+        f"write real end-to-end checks (curl/HTTP for http-api, a Playwright script "
+        f"for web-ui, direct invocation for cli) - never include the Start command. "
         f"End with your JSON verdict."
     )
 
@@ -57,8 +61,16 @@ def make_acceptance_gate_node(config: Config):
     """Deterministic node: run the held-out suite once review has approved."""
 
     async def _node(state: PipelineState) -> dict[str, Any]:
-        acc_path = config.docs_for(state["issue"]) / ACCEPTANCE_FILE
-        results = run_validation(acc_path, config.repo_root)
+        docs = config.docs_for(state["issue"])
+        acc_path = docs / ACCEPTANCE_FILE
+        commands = (
+            parse_fields(acc_path.read_text(encoding="utf-8")).get("Acceptance", [])
+            if acc_path.is_file()
+            else []
+        )
+        strategy = load_strategy(docs / "TEST_STRATEGY.md")
+        # Held-out checks run against the booted app when TEST_STRATEGY.md declares one.
+        results = run_with_app(commands, strategy, config.repo_root) if commands else {}
         update = base_update(state, "review", config)
         update["acceptance"] = results
         return update

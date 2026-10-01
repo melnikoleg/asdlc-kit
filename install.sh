@@ -17,7 +17,7 @@ for arg in "$@"; do
   case $arg in
     --global)  MODE="global"; TARGET_DIR="$GLOBAL_DIR" ;;
     --project) MODE="project" ;;
-    --project=*) MODE="project"; TARGET_DIR="${arg#--project=}" ;;
+    --project=*) MODE="project"; TARGET_DIR="${arg#--project=}/.claude" ;;
     --help|-h)
       echo "Usage: bash install.sh [--global] [--project=/path]"
       echo "  --global           Install to ~/.claude (all projects)"
@@ -133,6 +133,19 @@ if [ ! -f "$DST_PARENT/CLAUDE.md" ] && [ -f "$SCRIPT_DIR/CLAUDE.md" ]; then
   success "CLAUDE.md installed"
 fi
 
+# ─── Python runtime (asdlc-runtime, asdlc-e2e) ───────────────────────────────
+command -v claude &>/dev/null || warn "claude CLI not found on PATH - the runtime needs Claude Code"
+if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ] && command -v python3 &>/dev/null; then
+  info "Installing runtime into $PROJ_DIR/.asdlc-venv ..."
+  if python3 -m venv "$PROJ_DIR/.asdlc-venv" && "$PROJ_DIR/.asdlc-venv/bin/pip" install -q "$SCRIPT_DIR"; then
+    success "Runtime installed: $PROJ_DIR/.asdlc-venv/bin/asdlc-runtime"
+  else
+    warn "Runtime install failed - run: pip install $SCRIPT_DIR"
+  fi
+else
+  warn "Runtime not installed - run: pip install $SCRIPT_DIR"
+fi
+
 # ─── Verify ──────────────────────────────────────────────────────────────────
 echo ""
 info "Verification..."
@@ -155,6 +168,7 @@ echo "╠═══════════════════════�
 echo "║  Quick start (in Claude Code):               ║"
 echo "║                                              ║"
 echo "║  /factory auth-api \"build JWT auth API\"    ║"
+echo "║  (or) asdlc-runtime auth-api \"...\"         ║"
 echo "║  /sdlc-status                                ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
