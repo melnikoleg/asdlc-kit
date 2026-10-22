@@ -62,4 +62,4 @@ Non-trivial logic leaves ONE runnable check behind — the smallest thing that f
 
 - `/ponytail-review` — flag over-engineered code in the current diff
 - `/code-reviewer` — full adversarial review (correctness + security + design)
-- `/sdlc-review` — SDLC pipeline review
+- `/factory` — SDLC pipeline

@@ -11,13 +11,13 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import Config
-from ..state import REVIEW_AGENTS, PipelineState
+from ..state import PipelineState, review_agents
 from ._common import base_update
 
 
 def _failing(state: PipelineState) -> list[str]:
     verdicts = state.get("verdicts", {})
-    return [a for a in REVIEW_AGENTS if verdicts.get(a) != "APPROVED"]
+    return [a for a in review_agents(state) if verdicts.get(a) != "APPROVED"]
 
 
 def make_aggregate_node(config: Config):

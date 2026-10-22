@@ -1,6 +1,6 @@
 """LangGraph assembly: the deterministic SDLC topology.
 
-    START → product → planner → architect → acceptance → approval ⏸(interrupt)
+    START → codebase → product → planner → architect → acceptance → approval ⏸(interrupt)
           → developer → validate ──fail──▶ developer (fix) | escalate
                               └─pass─▶ [reviewer ‖ qa ‖ devops] → aggregate
     aggregate ──all APPROVED──▶ acceptance_gate ──pass──▶ readiness → END
@@ -30,16 +30,17 @@ from . import nodes as N
 def build_graph(config: Config, runner: Callable[..., Any] | None = None, checkpointer=None):
     """Build and compile the pipeline graph.
 
-    ``runner`` defaults to the real Claude Agent SDK bridge; tests inject a
+    ``runner`` defaults to the real ``claude -p`` bridge; tests inject a
     mock. A ``checkpointer`` is required for the approval interrupt and durable
     resume — :func:`runtime.checkpoint.make_checkpointer` provides one.
     """
     if runner is None:
-        from .claude_runner import run_agent as runner  # lazy: avoid SDK import in tests
+        from .claude_runner import run_agent as runner  # lazy: keep the runner out of test imports
 
     g: StateGraph = StateGraph(PipelineState)
 
     # Nodes
+    g.add_node("codebase", N.make_codebase_node(config, runner))
     g.add_node("product", N.make_product_node(config, runner))
     g.add_node("planner", N.make_planner_node(config, runner))
     g.add_node("architect", N.make_architect_node(config, runner))
@@ -57,7 +58,8 @@ def build_graph(config: Config, runner: Callable[..., Any] | None = None, checkp
 
     # Linear planning chain. The held-out acceptance suite is authored before
     # the approval gate so a human can review the objective criteria too.
-    g.add_edge(START, "product")
+    g.add_edge(START, "codebase")
+    g.add_edge("codebase", "product")
     g.add_edge("product", "planner")
     g.add_edge("planner", "architect")
     g.add_edge("architect", "acceptance")

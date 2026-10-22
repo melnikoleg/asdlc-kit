@@ -1,9 +1,6 @@
 """Runtime configuration sourced from environment variables.
 
-Production server use authenticates with ``ANTHROPIC_API_KEY`` (the
-service-account path). A Claude Pro/Max subscription (OAuth login) is only
-appropriate for local development; if no key is set we fall back to whatever
-credentials the local Claude Code install already holds.
+Authentication is whatever the local ``claude`` CLI login already holds.
 """
 
 from __future__ import annotations
@@ -30,7 +27,6 @@ def _repo_root() -> Path:
 @dataclass(frozen=True)
 class Config:
     repo_root: Path
-    anthropic_api_key: str | None
     checkpoint_backend: str  # "sqlite" | "postgres"
     db_url: str | None
     sqlite_path: Path
@@ -98,7 +94,6 @@ def load_config() -> Config:
 
     return Config(
         repo_root=repo_root,
-        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
         checkpoint_backend=backend,
         db_url=db_url,
         sqlite_path=sqlite_path,

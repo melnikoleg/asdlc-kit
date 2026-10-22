@@ -10,7 +10,7 @@ from typing import Any
 
 from ..config import Config
 from ..state import PipelineState, now_iso
-from ..validation import all_passed
+from ..validation import MISCONFIGURED, all_passed
 from ._common import base_update
 
 
@@ -22,8 +22,14 @@ def make_escalate_node(config: Config):
         cancelled = not state.get("approved", False) and state.get("iteration", 0) == 0
         acceptance = state.get("acceptance", {})
         held_out_failed = bool(acceptance) and not all_passed(acceptance)
+        misconfigured = next(
+            (r[MISCONFIGURED]["output"] for r in (state.get("validation", {}), acceptance) if MISCONFIGURED in r),
+            None,
+        )
         if cancelled:
             reason = "Human cancelled at the approval gate."
+        elif misconfigured:
+            reason = f"Gate misconfigured — {misconfigured}."
         elif held_out_failed:
             failed = [c for c, r in acceptance.items() if not r.get("passed")]
             reason = (

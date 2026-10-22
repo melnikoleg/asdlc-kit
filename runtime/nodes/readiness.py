@@ -54,14 +54,12 @@ def _validation_lines(state: PipelineState) -> list[str]:
     for cmd, res in state.get("validation", {}).items():
         mark = "PASS" if res.get("passed") else "FAIL"
         out.append(f"- `{cmd}` → {mark} (exit {res.get('exit_code')})")
-    return out or ["- (no validation commands found in PLAN.md)"]
+    return out
 
 
 def _acceptance_lines(state: PipelineState) -> list[str]:
     """Objective held-out result: readiness is only reached when all pass."""
     acceptance = state.get("acceptance", {})
-    if not acceptance:
-        return ["- (no held-out acceptance checks authored)"]
     passed = sum(1 for r in acceptance.values() if r.get("passed"))
     return [f"- Held-out checks: {passed}/{len(acceptance)} passed"] + [
         f"- `{cmd}` → {'PASS' if res.get('passed') else 'FAIL'}"

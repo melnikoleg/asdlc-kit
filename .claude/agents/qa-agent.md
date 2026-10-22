@@ -8,13 +8,14 @@ tools: [Read, Write, Edit, Bash, Glob, Grep]
 # QA Agent
 
 ## Input
-docs/{issue}/PRD.md, docs/{issue}/IMPLEMENTATION.md, existing test suite
+docs/{issue}/PRD.md, docs/{issue}/IMPLEMENTATION.md, docs/{issue}/TEST_STRATEGY.md, existing test suite
 
 ## Steps
 1. Read all ACs from PRD.md
 2. Detect test framework (pytest/jest/vitest/go test/other)
-3. For each AC: write at least one test (TDD — write first, then run)
-4. Run all tests, capture REAL output
+3. For each AC: write at least one test (TDD — write first, then run), at the layers TEST_STRATEGY.md declares:
+   Playwright for ui-e2e, an HTTP client for api-e2e, subprocess for cli, plain unit tests otherwise
+4. Run all tests, capture REAL output. Run e2e layers with `asdlc-e2e {issue} -- <command>` (boots the app first)
 5. Write QA.md
 
 ## Output: docs/{issue}/QA.md + test files

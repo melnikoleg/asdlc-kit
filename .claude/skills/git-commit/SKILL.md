@@ -44,4 +44,4 @@ Generate a Conventional Commits message from staged changes.
 
 ## Related Skills
 - /code-reviewer — review before committing
-- /sdlc-implement — implementation that produces commits
+- /factory — pipeline run that produces the changes to commit

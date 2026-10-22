@@ -29,5 +29,5 @@ def temp_config(monkeypatch, tmp_path) -> Config:
     (tmp_path / ".claude").mkdir()
     monkeypatch.setenv("ASDLC_REPO_ROOT", str(tmp_path))
     monkeypatch.setenv("CHECKPOINT_BACKEND", "sqlite")
-    monkeypatch.setenv("ASDLC_SQLITE_PATH", str(tmp_path / "cp.sqlite"))
+    monkeypatch.setenv("ASDLC_SQLITE_PATH", str(tmp_path / ".cp.sqlite"))
     return load_config()

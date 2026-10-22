@@ -1,14 +1,13 @@
 # asdlc-runtime — LangGraph orchestrator for the Agentic SDLC Kit
 
 A deterministic, server-grade orchestration layer for the SDLC pipeline. It runs
-the **same** Claude Code agents defined in `.claude/agents/*.md` (via the Claude
-Agent SDK), but wires them into a LangGraph state machine so the *topology* is
+the **same** Claude Code agents defined in `.claude/agents/*.md` (through headless
+`claude -p`), but wires them into a LangGraph state machine so the *topology* is
 guaranteed by code rather than by the model's good will.
 
 ## Why this exists
 
-The native Claude Code pipeline (`/factory`, `/sdlc-orchestrate`) is ideal for
-interactive use. For an **autonomous service** its LLM-driven orchestration is
+An LLM-driven orchestration (the model following a prose pipeline) is
 best-effort: the model can skip the approval gate, not actually run validation,
 declare `APPROVED` without checking, or mis-count the fix-loop.
 
@@ -28,22 +27,26 @@ remain the single source of truth — this package loads them, it does not fork 
 ## Topology
 
 ```
-START → product → planner → architect → acceptance → approval ⏸(interrupt)
+START → codebase → product → planner → architect → acceptance → approval ⏸(interrupt)
       → developer → validate ──fail──▶ developer (fix) | escalate
-                          └─pass─▶ [reviewer ‖ qa ‖ devops] → aggregate
+                          └─pass─▶ [reviewer ‖ qa (‖ devops if --devops)] → aggregate
+
+validate = PLAN.md `Validation:` commands, then TEST_STRATEGY.md `E2E:` against the booted app.
+codebase is skipped (no LLM call) on a greenfield repo.
 aggregate ──all APPROVED──▶ acceptance_gate ──pass──▶ readiness → END
                                             └─fail─▶ escalate → END
           ──NEEDS_FIX & budget left──▶ developer (fix)
           ──budget exhausted──▶ escalate → END
 
 acceptance authors a held-out suite the developer never reads; acceptance_gate
-grades it deterministically as an objective final check.
+grades it deterministically as an objective final check, against the booted app
+when TEST_STRATEGY.md declares Start/Healthcheck.
 ```
 
 ## Install
 
 ```bash
-cd runtime
+# from the repo root
 pip install -e .            # core (SQLite checkpointer)
 pip install -e '.[postgres]'  # production Postgres checkpointer
 pip install -e '.[server]'    # FastAPI server
@@ -54,7 +57,6 @@ pip install -e '.[dev]'       # tests
 
 | Var | Default | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | **Use for server/automated runs** (service-account path). If unset, falls back to local Claude Code subscription credentials — only appropriate for dev. |
 | `CHECKPOINT_BACKEND` | `sqlite` | `sqlite` (dev) or `postgres` (prod). |
 | `DB_URL` | — | Required when backend is `postgres`. |
 | `ASDLC_SQLITE_PATH` | `.asdlc/checkpoints.sqlite` | SQLite checkpoint file. |
@@ -73,14 +75,14 @@ the `## Model Economics` section of `PRODUCTION_READINESS.md`.
 
 ```bash
 # Start (runs up to the approval gate, then pauses)
-ANTHROPIC_API_KEY=… python -m runtime.cli demo-feature "Build a TODO REST API"
+asdlc-runtime demo-feature "Build a TODO REST API"
 
 # Approve / cancel the paused pipeline
-python -m runtime.cli demo-feature --approve
-python -m runtime.cli demo-feature --cancel
+asdlc-runtime demo-feature --approve
+asdlc-runtime demo-feature --cancel
 
 # Resume from the last checkpoint after a crash
-python -m runtime.cli demo-feature --resume
+asdlc-runtime demo-feature --resume
 ```
 
 The thread id is the issue name, so approve/resume work across separate processes.
@@ -99,8 +101,8 @@ uvicorn runtime.server:app
 ## Usage dashboard — which skills ran, tokens, cost & timing
 
 Every agent run records a real metric — the agent (skill) invoked, its model,
-verdict, token counts, cost and duration, all captured from the SDK
-`ResultMessage` (no estimates). Records accumulate in pipeline state and are
+verdict, token counts, cost and duration, all captured from
+`claude -p --output-format json` (no estimates). Records accumulate in pipeline state and are
 mirrored to `docs/{issue}/METRICS.json` as the graph runs.
 
 Render a self-contained, theme-aware HTML dashboard aggregating every pipeline:

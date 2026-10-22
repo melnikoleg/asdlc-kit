@@ -5,7 +5,7 @@ verdict, real token counts, cost and duration). Records live in pipeline state
 (reducer-accumulated) and are mirrored to ``docs/{issue}/METRICS.json``. The
 dashboard reads those files back and aggregates them across all pipelines.
 
-All numbers originate from the SDK ``ResultMessage`` via
+All numbers originate from ``claude -p --output-format json`` via
 :class:`runtime.claude_runner.Usage`; a mock/usage-less run degrades to a
 zero-cost record rather than fabricating figures.
 """
@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 from .agent_loader import AGENT_FILE
 from .state import now_iso
 
-if TYPE_CHECKING:  # avoid importing the SDK bridge at module load
+if TYPE_CHECKING:  # avoid importing the runner bridge at module load
     from .claude_runner import Usage
 
 METRICS_FILE = "METRICS.json"
@@ -39,7 +39,7 @@ _SUM_FIELDS = (
 
 def build_metric(node: str, status: str, usage: "Usage | None", iteration: int) -> dict[str, Any]:
     """One metric record for a single agent run."""
-    from .claude_runner import Usage  # lazy: keep SDK import out of import time
+    from .claude_runner import Usage  # lazy: avoid a circular import
 
     u = usage or Usage()
     total_tokens = u.input_tokens + u.output_tokens

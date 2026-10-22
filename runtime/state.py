@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, TypedDict
 
 Phase = Literal[
+    "codebase",
     "product",
     "plan",
     "architect",
@@ -31,6 +32,11 @@ Phase = Literal[
 
 # Agents that run in the parallel review fan-out.
 REVIEW_AGENTS = ("reviewer", "qa", "devops")
+
+
+def review_agents(state: "PipelineState") -> tuple[str, ...]:
+    """Review fan-out for this run: devops joins only when opted in."""
+    return REVIEW_AGENTS if state.get("devops") else REVIEW_AGENTS[:2]
 
 # An issue name becomes both the durable thread id and a path segment
 # (``docs/{issue}/``). Restricting it to a kebab/snake slug keeps it from
@@ -81,6 +87,9 @@ class PipelineState(TypedDict, total=False):
     phase: Phase
     iteration: int
     approved: bool
+    devops: bool
+    # HEAD before the developer's first pass: the reviewer diffs against it.
+    base_sha: str | None
     failing_agents: list[str]
     artifacts: Annotated[list[str], _append_unique]
     # verdicts and validation are written concurrently by fan-out nodes,
@@ -100,7 +109,7 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def new_state(issue: str, requirement: str) -> PipelineState:
+def new_state(issue: str, requirement: str, devops: bool = False) -> PipelineState:
     issue = validate_issue(issue)
     if not requirement or not requirement.strip():
         raise ValueError("requirement must be a non-empty string")
@@ -108,9 +117,10 @@ def new_state(issue: str, requirement: str) -> PipelineState:
     return PipelineState(
         issue=issue,
         requirement=requirement,
-        phase="product",
+        phase="codebase",
         iteration=0,
         approved=False,
+        devops=devops,
         failing_agents=[],
         artifacts=[],
         verdicts={},
@@ -127,6 +137,7 @@ _STATE_JSON_FIELDS = (
     "issue",
     "phase",
     "iteration",
+    "base_sha",
     "failing_agents",
     "artifacts",
     "started_at",

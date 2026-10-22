@@ -5,46 +5,50 @@ This project uses an **agent-native Software Development Lifecycle** where speci
 ## Quick Start
 
 ```bash
-# Full pipeline (requirement → production-ready code)
-/factory <issue-name> "<requirement description>"
+# Full pipeline (requirement → production-ready code); pauses at the approval gate
+asdlc-runtime <issue-name> "<requirement description>" [--devops]
+asdlc-runtime <issue-name> --approve      # or --cancel / --resume
 
-# Planning only (review before coding)
-/sdlc-plan <issue-name> "<requirement>"
-
-# Check all pipeline status
+# Inside Claude Code
+/factory <issue-name> "<requirement>"
 /sdlc-status
 ```
+
+The runtime (`runtime/`, LangGraph + headless `claude -p`) is the only pipeline. Skills wrap it.
 
 ## Pipeline
 
 ```
-Requirement → codebase-agent  → CODEBASE_CONTEXT.md (brownfield repos only)
+Requirement → codebase-agent  → CODEBASE_CONTEXT.md (skipped on greenfield repos)
              product-agent    → PRD.md
-             planner-agent    → PLAN.md
+             planner-agent    → PLAN.md + TEST_STRATEGY.md (stack, layers, Start/Healthcheck/E2E)
              architect-agent  → ADR.md
              acceptance-agent → ACCEPTANCE.md (held-out; developer never reads it)
              [human approval]
              developer-agent → IMPLEMENTATION.md + code
+             validate (code)  → PLAN `Validation:` commands, then `E2E:` against the booted app
              reviewer-agent  ┐
-             qa-agent        ┴── parallel → REVIEW.md + QA.md
+             qa-agent        ┴── parallel (+ devops-agent with --devops) → REVIEW.md + QA.md
              [fix loop if needed, max 3x]
-             held-out acceptance gate (deterministic) → pass, else escalate
+             held-out acceptance gate (code, against the booted app) → pass, else escalate
              PRODUCTION_READINESS.md
-
-             (optional) /sdlc-deploy → devops-agent → DEPLOY.md + Docker/CI
 ```
+
+## Testing during the pipeline
+
+`TEST_STRATEGY.md` (planner-owned) declares `Type` (web-ui | http-api | cli | library), `Layers`,
+`Start`/`Healthcheck` (foreground command, port 8700-8799), and `E2E`. `runtime/validation.py`
+boots the app, waits for health, runs the commands, kills the process group. Agents run e2e
+through `asdlc-e2e <issue> -- <command>` so they hit the same lifecycle. UI = Playwright,
+API = HTTP client, CLI = subprocess.
 
 ## Available Skills (invoke via /skill-name)
 
 | Skill | Description |
 |-------|-------------|
-| `/sdlc-orchestrate` (`/factory`) | Full pipeline end-to-end |
-| `/sdlc-plan` | Planning phase only (PRD + PLAN + ADR) |
-| `/sdlc-implement` | Implementation from existing PLAN.md |
-| `/sdlc-review` | Parallel review (reviewer + qa) |
-| `/sdlc-fix` | Fix blocking review issues |
-| `/sdlc-deploy` | Optional Docker/CI/runbook generation |
-| `/sdlc-status` | Status, derived from artifacts present |
+| `/factory` | Run the pipeline through `asdlc-runtime` |
+| `/sdlc-status` | Status from `docs/*/STATE.json` |
+| `/sdlc-deploy` | Optional Docker/CI/runbook generation (or `--devops`) |
 | `/code-reviewer` | Adversarial code review |
 | `/security-audit` | OWASP Top 10 security scan |
 | `/test-writer` | Write tests for existing code |
@@ -53,18 +57,19 @@ Requirement → codebase-agent  → CODEBASE_CONTEXT.md (brownfield repos only)
 
 ## Artifacts
 
-All SDLC artifacts are stored in `docs/{issue-name}/`. Pipeline status is derived
-from which of these exist — there is no separate state file:
+All SDLC artifacts are stored in `docs/{issue-name}/`:
 - `CODEBASE_CONTEXT.md` — existing stack/conventions/integration points (brownfield repos only)
 - `PRD.md` — requirements with testable ACs
 - `PLAN.md` — phased plan with validation commands
+- `TEST_STRATEGY.md` — stack, test layers, how to boot the app, e2e command
 - `ADR.md` — architecture decisions (binding)
 - `ACCEPTANCE.md` — held-out acceptance suite (one runnable check per AC; the developer must not read it)
 - `IMPLEMENTATION.md` — code changes + real validation evidence
 - `REVIEW.md` — adversarial code review verdict
 - `QA.md` — test results mapped to ACs
-- `DEPLOY.md` — deployment runbook (only if /sdlc-deploy was run)
+- `DEPLOY.md` — deployment runbook (only with `--devops` or /sdlc-deploy)
 - `PRODUCTION_READINESS.md` — final sign-off
+- `STATE.json`, `METRICS.json` — runtime state mirror and per-agent cost/tokens
 
 ## Editor & MCP Setup
 
@@ -79,7 +84,7 @@ tier (product, planner, architect, reviewer → Opus by default); production use
 cheaper **worker** tier (developer, qa, devops, acceptance → Sonnet by default).
 Defaults live in each `.claude/agents/*.md` `model:` field.
 
-The Python runtime lets you swap the whole mix for one run — reproduce the
+The runtime lets you swap the whole mix for one run — reproduce the
 "agent-swarm economics" experiment (planner=smart, workers=cheap) and compare cost.
 Resolution order (most specific wins): `ASDLC_MODEL_<NODE>` → `ASDLC_MODEL_SMART` /
 `ASDLC_MODEL_WORKER` → frontmatter `model:`. Example:
@@ -91,9 +96,7 @@ ASDLC_MODEL_SMART=claude-opus-4-8 ASDLC_MODEL_WORKER=claude-haiku-4-5-20251001 \
 
 Cost/token usage per agent is captured to `docs/{issue}/METRICS.json`, summarized in
 the `## Model Economics` section of `PRODUCTION_READINESS.md`, and rendered by
-`asdlc-dashboard`. (The skills-only path has no token capture; there, "configurable"
-means editing the frontmatter `model:`.)
-
+`asdlc-dashboard`. 
 ## Guardrails (always active)
 - Destructive shell commands blocked (rm -rf /, git push --force, git reset --hard, mkfs, dd)
 - Writes to .env, *.pem, id_rsa, kubeconfig blocked

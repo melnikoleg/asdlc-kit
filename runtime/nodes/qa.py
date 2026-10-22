@@ -12,7 +12,11 @@ def _prompt(state: PipelineState, config: Config) -> str:
     return (
         f"Issue: {issue}\n"
         f"Write and run tests for every acceptance criterion in "
-        f"docs/{issue}/PRD.md. Capture real test output. Write docs/{issue}/QA.md "
+        f"docs/{issue}/PRD.md. Read docs/{issue}/TEST_STRATEGY.md and cover each "
+        f"declared layer (Playwright for ui-e2e, an HTTP client for api-e2e, subprocess "
+        f"for cli, unit otherwise). Run e2e tests with "
+        f"`asdlc-e2e {issue} -- <command>` so the app is booted for them. "
+        f"Capture real test output. Write docs/{issue}/QA.md "
         f"with an AC coverage map and a Verdict line. End with your JSON verdict."
     )
 

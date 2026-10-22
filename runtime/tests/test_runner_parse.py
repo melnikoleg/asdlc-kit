@@ -76,26 +76,29 @@ async def test_run_agent_fails_when_no_verdict(real_config, monkeypatch):
     assert result.usage.input_tokens == 6  # both attempts counted
 
 
-def test_usage_from_result_message():
-    class FakeResult:
-        usage = {
-            "input_tokens": 100,
-            "output_tokens": 40,
-            "cache_read_input_tokens": 12,
-        }
-        total_cost_usd = 0.0123
-        duration_ms = 4200
-        num_turns = 3
-
-    u = claude_runner._usage_from_message(FakeResult())
+def test_usage_from_payload():
+    payload = {
+        "usage": {"input_tokens": 100, "output_tokens": 40, "cache_read_input_tokens": 12},
+        "total_cost_usd": 0.0123,
+        "duration_ms": 4200,
+        "num_turns": 3,
+    }
+    u = claude_runner._usage_from_payload(payload, "m")
     assert u.input_tokens == 100 and u.output_tokens == 40
-    assert u.cache_read_tokens == 12
+    assert u.cache_read_tokens == 12 and u.model == "m"
     assert u.cost_usd == pytest.approx(0.0123)
     assert u.duration_ms == 4200 and u.num_turns == 3
 
 
-def test_usage_from_message_ignores_plain_text_blocks():
-    class TextOnly:
-        content = "hello"
+def test_usage_from_empty_payload_is_zero():
+    assert claude_runner._usage_from_payload({}, None).input_tokens == 0
 
-    assert claude_runner._usage_from_message(TextOnly()) is None
+
+@pytest.mark.asyncio
+async def test_missing_claude_cli_is_a_clear_error(real_config, monkeypatch):
+    async def boom(*args, **kwargs):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(claude_runner.asyncio, "create_subprocess_exec", boom)
+    with pytest.raises(RuntimeError, match="claude CLI not found"):
+        await run_agent("product", "do it", real_config)

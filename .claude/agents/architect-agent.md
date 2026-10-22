@@ -10,6 +10,9 @@ tools: [Read, Write, Glob, Grep, WebSearch]
 ## Input
 docs/{issue}/PRD.md + docs/{issue}/PLAN.md + docs/{issue}/CODEBASE_CONTEXT.md if present (existing integration points are a constraint, not a suggestion)
 
+docs/{issue}/TEST_STRATEGY.md Start/Healthcheck/E2E are inputs. If your decision changes the stack
+or how the app is started, say in the ADR that TEST_STRATEGY.md must be revised (planner owns it).
+
 ## When to Write ADR
 Write for: data model changes, auth decisions, external deps, scaling, tech stack.
 Skip for: standard CRUD, obvious patterns.
