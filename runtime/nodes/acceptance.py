@@ -18,7 +18,7 @@ from typing import Any
 from ..config import Config
 from ..metrics import build_metric
 from ..state import PipelineState
-from ..validation import all_passed, load_strategy, parse_fields, run_with_app
+from ..validation import all_passed, load_strategy, misconfigured, parse_fields, run_with_app
 from ._common import Runner, base_update
 
 ACCEPTANCE_FILE = "ACCEPTANCE.md"
@@ -70,7 +70,11 @@ def make_acceptance_gate_node(config: Config):
         )
         strategy = load_strategy(docs / "TEST_STRATEGY.md")
         # Held-out checks run against the booted app when TEST_STRATEGY.md declares one.
-        results = run_with_app(commands, strategy, config.repo_root) if commands else {}
+        results = (
+            run_with_app(commands, strategy, config.repo_root)
+            if commands
+            else misconfigured(f"no `Acceptance:` lines in {ACCEPTANCE_FILE}")
+        )
         update = base_update(state, "review", config)
         update["acceptance"] = results
         return update

@@ -88,6 +88,8 @@ class PipelineState(TypedDict, total=False):
     iteration: int
     approved: bool
     devops: bool
+    # HEAD before the developer's first pass: the reviewer diffs against it.
+    base_sha: str | None
     failing_agents: list[str]
     artifacts: Annotated[list[str], _append_unique]
     # verdicts and validation are written concurrently by fan-out nodes,
@@ -135,6 +137,7 @@ _STATE_JSON_FIELDS = (
     "issue",
     "phase",
     "iteration",
+    "base_sha",
     "failing_agents",
     "artifacts",
     "started_at",

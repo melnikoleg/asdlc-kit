@@ -8,7 +8,11 @@ tools: [Read, Grep, Glob, Bash]
 # Reviewer Agent
 
 ## Input
-docs/{issue}/PRD.md, docs/{issue}/ADR.md, docs/{issue}/IMPLEMENTATION.md, changed source files
+docs/{issue}/PRD.md, docs/{issue}/ADR.md, the diff since the pre-implementation commit
+(`git diff <base-sha>` + `git status --short`), and the validation results in your prompt.
+
+Never read docs/{issue}/IMPLEMENTATION.md. It is the developer's own account of the
+work; a reviewer that reads it rubber-stamps the story instead of the code.
 
 ## Output: docs/{issue}/REVIEW.md
 Sections: Verdict (APPROVED|NEEDS_FIX), Blocking Issues (file:line — problem — required fix),

@@ -7,6 +7,8 @@ recorded by the review agents.
 
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
 from typing import Any
 
 from ..config import Config
@@ -61,6 +63,14 @@ def _fix_prompt(
     )
 
 
+def head_sha(repo_root: Path) -> str | None:
+    """Current HEAD, or None outside git / before the first commit."""
+    proc = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True
+    )
+    return proc.stdout.strip() or None if proc.returncode == 0 else None
+
+
 def make_developer_node(config: Config, runner: Runner):
     async def _node(state: PipelineState) -> dict[str, Any]:
         issue = state["issue"]
@@ -71,9 +81,11 @@ def make_developer_node(config: Config, runner: Runner):
         else:
             prompt = _normal_prompt(issue)
             phase = "implement"
+        base_sha = state.get("base_sha") if fix_mode else head_sha(config.repo_root)
         result = await runner("developer", prompt, config)
         metric = build_metric("developer", result.status, result.usage, state.get("iteration", 0))
         update = base_update(state, phase, config, metric=metric)
+        update["base_sha"] = base_sha
         update["verdicts"] = {"developer": result.status}
         update["artifacts"] = result.artifacts  # reducer union-appends
         return update

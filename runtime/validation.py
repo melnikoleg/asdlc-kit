@@ -129,16 +129,33 @@ def run_command(command: str, cwd: Path, timeout: int = 600) -> dict[str, Any]:
         }
 
 
+MISCONFIGURED = "MISCONFIGURED"
+
+
+def misconfigured(reason: str) -> dict[str, dict[str, Any]]:
+    """A gate with nothing to run must block, not pass: synthesize a failing check."""
+    return {
+        MISCONFIGURED: {
+            "command": MISCONFIGURED,
+            "exit_code": -1,
+            "output": f"no runnable checks: {reason}",
+            "passed": False,
+        }
+    }
+
+
 def run_validation(plan_path: Path, cwd: Path, timeout: int = 600) -> dict[str, dict[str, Any]]:
     """Parse PLAN.md and run every validation command. Keyed by command string."""
     if not plan_path.is_file():
-        return {}
+        return misconfigured(f"{plan_path.name} not found")
     commands = parse_validation_commands(plan_path.read_text(encoding="utf-8"))
+    if not commands:
+        return misconfigured(f"no `Validation:` lines in {plan_path.name}")
     return {cmd: run_command(cmd, cwd, timeout) for cmd in commands}
 
 
 def all_passed(results: dict[str, dict[str, Any]]) -> bool:
-    """True if there are results and all passed. Empty results => no gate => True."""
+    """All results passed. Gates never pass an empty set: they synthesize MISCONFIGURED first."""
     if not results:
         return True
     return all(r.get("passed") for r in results.values())

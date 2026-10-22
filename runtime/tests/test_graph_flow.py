@@ -38,7 +38,7 @@ def mock_runner(review_fail_times=0, fan_out=2):
 def write_plan(config, cmd):
     docs = config.docs_for(ISSUE)
     docs.mkdir(parents=True, exist_ok=True)
-    (docs / "PLAN.md").write_text(f"## Phase 1\nValidation: {cmd}\n")
+    (docs / "PLAN.md").write_text("## Phase 1\n" + (f"Validation: {cmd}\n" if cmd else ""))
 
 
 def write_strategy(config, fields: dict):
@@ -71,7 +71,7 @@ def write_acceptance(config, cmd):
 
 
 async def drive(
-    config, *, review_fail_times=0, plan_cmd="true", approve=True, acceptance_cmd=None,
+    config, *, review_fail_times=0, plan_cmd="true", approve=True, acceptance_cmd="true",
     devops=False, strategy=None, runner=None,
 ):
     write_plan(config, plan_cmd)
@@ -304,3 +304,60 @@ async def test_fix_prompt_includes_failed_command_output(temp_config):
     fix = [p for p in dev_prompts if "FIX MODE" in p]
     assert fix and all("marker-xyz" in p for p in fix)
     assert all("REVIEW.md" not in p for p in fix)  # nothing to read yet
+
+
+@pytest.mark.asyncio
+async def test_plan_without_checks_escalates_to_planner_not_developer(temp_config):
+    out = await drive(temp_config, plan_cmd=None)
+    final = out["final"]
+    assert final["phase"] == "escalated"
+    assert final["iteration"] == 1  # no fix loop burned on something the developer can't fix
+    assert final["failing_agents"] == ["planner"]
+    assert "MISCONFIGURED" in final["validation"]
+    escalation = (temp_config.docs_for(ISSUE) / "ESCALATION.md").read_text()
+    assert "misconfigured" in escalation and "Validation:" in escalation
+
+
+@pytest.mark.asyncio
+async def test_missing_acceptance_suite_escalates(temp_config):
+    out = await drive(temp_config, acceptance_cmd=None)
+    final = out["final"]
+    assert final["phase"] == "escalated"
+    assert "MISCONFIGURED" in final["acceptance"]
+
+
+@pytest.mark.asyncio
+async def test_reviewer_sees_diff_and_validation_not_implementation(temp_config):
+    prompts = {}
+
+    async def spy(node, prompt, config):
+        prompts.setdefault(node, prompt)
+        return AgentResult(status="APPROVED", artifacts=[])
+
+    await drive(temp_config, runner=spy)
+    review = prompts["reviewer"]
+    assert "Do NOT read docs/demo/IMPLEMENTATION.md" in review
+    assert review.count("IMPLEMENTATION.md") == 1  # only the prohibition mentions it
+    assert "git diff" in review
+    assert "`true` → PASS" in review
+
+
+@pytest.mark.asyncio
+async def test_base_sha_recorded_from_git_head(temp_config):
+    import subprocess
+
+    root = temp_config.repo_root
+    subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+    subprocess.run(["git", "-C", str(root), "-c", "user.email=t@t", "-c", "user.name=t",
+                    "commit", "-q", "--allow-empty", "-m", "base"], check=True)
+    head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],
+                          capture_output=True, text=True, check=True).stdout.strip()
+    prompts = {}
+
+    async def spy(node, prompt, config):
+        prompts.setdefault(node, prompt)
+        return AgentResult(status="APPROVED", artifacts=[])
+
+    out = await drive(temp_config, runner=spy)
+    assert out["final"]["base_sha"] == head
+    assert f"git diff {head}" in prompts["reviewer"]

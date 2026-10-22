@@ -12,7 +12,7 @@ from typing import Any
 
 from ..config import Config
 from ..state import PipelineState, now_iso, review_agents
-from ..validation import all_passed, load_strategy, run_validation, run_with_app
+from ..validation import MISCONFIGURED, all_passed, load_strategy, run_validation, run_with_app
 from ._common import base_update
 
 
@@ -34,8 +34,9 @@ def make_validate_node(config: Config):
             return update
 
         # Validation failure is the developer's to fix; consume one iteration.
+        # A gate with no checks is the planner's fault and is routed to escalate.
         update["iteration"] = state.get("iteration", 0) + 1
-        update["failing_agents"] = ["developer"]
+        update["failing_agents"] = ["planner" if MISCONFIGURED in results else "developer"]
         update["updated_at"] = now_iso()
         return update
 
@@ -46,9 +47,10 @@ def make_route_after_validate(config: Config):
     """Conditional edge: list of review nodes (parallel) | 'developer' | 'escalate'."""
 
     def _route(state: PipelineState):
-        if all_passed(state.get("validation", {})):
+        validation = state.get("validation", {})
+        if all_passed(validation):
             return list(review_agents(state))
-        if state.get("iteration", 0) > config.max_iterations:
+        if MISCONFIGURED in validation or state.get("iteration", 0) > config.max_iterations:
             return "escalate"
         return "developer"
 

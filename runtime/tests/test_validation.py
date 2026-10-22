@@ -7,6 +7,7 @@ from pathlib import Path
 
 from runtime.validation import (
     _DENY_PATTERNS,
+    MISCONFIGURED,
     all_passed,
     is_destructive,
     parse_validation_commands,
@@ -68,7 +69,7 @@ def test_timeout_records_partial_output(tmp_path):
 
 
 def test_all_passed_semantics():
-    assert all_passed({}) is True  # no gate
+    assert all_passed({}) is True  # vacuous; gates feed MISCONFIGURED instead of {}
     assert all_passed({"a": {"passed": True}}) is True
     assert all_passed({"a": {"passed": True}, "b": {"passed": False}}) is False
 
@@ -82,8 +83,19 @@ def test_run_validation_reads_plan(tmp_path):
     assert all_passed(results) is False
 
 
-def test_missing_plan_returns_empty(tmp_path):
-    assert run_validation(tmp_path / "nope.md", tmp_path) == {}
+def test_missing_plan_is_misconfigured(tmp_path):
+    results = run_validation(tmp_path / "nope.md", tmp_path)
+    assert list(results) == [MISCONFIGURED]
+    assert results[MISCONFIGURED]["passed"] is False
+    assert "not found" in results[MISCONFIGURED]["output"]
+
+
+def test_plan_without_validation_lines_is_misconfigured(tmp_path):
+    plan = tmp_path / "PLAN.md"
+    plan.write_text("## Phase 1\nJust prose, no commands.\n")
+    results = run_validation(plan, tmp_path)
+    assert results[MISCONFIGURED]["passed"] is False
+    assert all_passed(results) is False
 
 
 # --- e2e app lifecycle -------------------------------------------------------
