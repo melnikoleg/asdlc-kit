@@ -134,7 +134,9 @@ if [ ! -f "$DST_PARENT/CLAUDE.md" ] && [ -f "$SCRIPT_DIR/CLAUDE.md" ]; then
 fi
 
 # ─── Python runtime (asdlc-runtime, asdlc-e2e) ───────────────────────────────
-command -v claude &>/dev/null || warn "claude CLI not found on PATH - the runtime needs Claude Code"
+if ! command -v claude &>/dev/null && ! command -v codex &>/dev/null; then
+  warn "Neither claude nor codex CLI found on PATH - install one to run agents"
+fi
 if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ] && command -v python3 &>/dev/null; then
   info "Installing runtime into $PROJ_DIR/.asdlc-venv ..."
   if python3 -m venv "$PROJ_DIR/.asdlc-venv" && "$PROJ_DIR/.asdlc-venv/bin/pip" install -q "$SCRIPT_DIR"; then

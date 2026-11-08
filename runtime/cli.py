@@ -25,7 +25,7 @@ import sys
 from langgraph.types import Command
 
 from .checkpoint import open_checkpointer
-from .config import load_config
+from .config import configure_providers, load_config, parse_agent_provider_args, required_providers
 from .graph import build_graph
 from .state import new_state
 
@@ -53,13 +53,43 @@ def _print_final(state: dict) -> None:
 
 
 async def _run(args: argparse.Namespace) -> int:
-    config = load_config()
-    if not shutil.which("claude"):
-        print("error: `claude` CLI not found on PATH - install Claude Code", file=sys.stderr)
+    try:
+        config = load_config()
+        if (args.approve or args.cancel or args.resume) and (args.provider or args.agent_provider):
+            raise ValueError("provider cannot be changed on --approve/--resume; start a new issue")
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 2
 
     thread = {"configurable": {"thread_id": args.issue}}
     async with open_checkpointer(config) as cp:
+        if args.approve or args.cancel or args.resume:
+            snapshot = await build_graph(config, checkpointer=cp).aget_state(thread)
+            if not snapshot.values:
+                print(f"error: pipeline {args.issue!r} does not exist", file=sys.stderr)
+                return 2
+            # Persisted routing wins over any changed environment variables.
+            config = configure_providers(
+                config, snapshot.values.get("provider", "claude"),
+                snapshot.values.get("agent_providers", {}), replace_overrides=True,
+            )
+            devops = bool(snapshot.values.get("devops"))
+        else:
+            try:
+                config = configure_providers(
+                    config, args.provider, parse_agent_provider_args(args.agent_provider),
+                )
+            except ValueError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 2
+            devops = args.devops
+
+        needed = required_providers(config, devops=devops)
+        if not args.cancel:
+            missing = sorted(name for name in needed if not shutil.which(name))
+            if missing:
+                print(f"error: missing CLI(s) on PATH: {', '.join(missing)}", file=sys.stderr)
+                return 2
         graph = build_graph(config, checkpointer=cp)
 
         if args.approve or args.cancel:
@@ -72,7 +102,7 @@ async def _run(args: argparse.Namespace) -> int:
                 print("error: a requirement is required to start a pipeline", file=sys.stderr)
                 return 2
             try:
-                initial = new_state(args.issue, args.requirement, devops=args.devops, specs=args.specs)
+                initial = new_state(args.issue, args.requirement, devops=args.devops, specs=args.specs, provider=config.provider, agent_providers=config.agent_providers)
             except ValueError as exc:
                 print(f"error: {exc}", file=sys.stderr)
                 return 2
@@ -90,6 +120,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("requirement", nargs="?", help="requirement text (to start a pipeline)")
     parser.add_argument("--devops", action="store_true", help="also run devops-agent (Docker/CI)")
     parser.add_argument("--specs", action="store_true", help="enable pre-approved executable business specifications")
+    parser.add_argument("--provider", choices=("claude", "codex"), default=None,
+                        help="default agent CLI (default: ASDLC_PROVIDER or claude)")
+    parser.add_argument("--agent-provider", action="append", default=[], metavar="NODE=PROVIDER",
+                        help="per-agent override, e.g. developer=codex (repeatable)")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--approve", action="store_true", help="approve a paused pipeline")
     group.add_argument("--cancel", action="store_true", help="cancel a paused pipeline")
