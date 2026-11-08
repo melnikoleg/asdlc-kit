@@ -7,6 +7,9 @@ FP=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(
 case "$(basename "$FP")" in
   PRD.md)
     grep -q "Acceptance Criteria" "$FP" 2>/dev/null || echo "[SDLC] WARNING: PRD.md missing 'Acceptance Criteria' section" >&2 ;;
+  SPECIFICATIONS.md)
+    grep -q '^## AC-[0-9]' "$FP" 2>/dev/null || echo "[SDLC] WARNING: SPECIFICATIONS.md has no AC-N sections" >&2
+    grep -q '^Spec:' "$FP" 2>/dev/null || echo "[SDLC] WARNING: SPECIFICATIONS.md has no runnable Spec: commands" >&2 ;;
   PLAN.md)
     grep -q "Validation:" "$FP" 2>/dev/null || echo "[SDLC] WARNING: PLAN.md missing 'Validation:' commands" >&2 ;;
   TEST_STRATEGY.md)

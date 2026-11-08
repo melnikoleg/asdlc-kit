@@ -30,6 +30,8 @@ maps to. Commands are graded by the deterministic acceptance gate, not by you.
 
 ## Rules
 - One check per AC; every AC must be covered.
+- When executable specifications are enabled, prefer independent black-box
+  end-to-end checks rather than copying the developer-visible spec test bodies.
 - These commands are HELD OUT: never place them in PLAN.md, IMPLEMENTATION.md,
   or any source file, and never reference them from developer-facing artifacts.
 - Do not run the checks yourself and do not fabricate results — grading is the

@@ -44,6 +44,8 @@ def build_graph(config: Config, runner: Callable[..., Any] | None = None, checkp
     g.add_node("product", N.make_product_node(config, runner))
     g.add_node("planner", N.make_planner_node(config, runner))
     g.add_node("architect", N.make_architect_node(config, runner))
+    g.add_node("specification", N.make_specification_node(config, runner))
+    g.add_node("spec_preflight", N.make_spec_preflight_node(config))
     g.add_node("acceptance", N.make_acceptance_author_node(config, runner))
     g.add_node("acceptance_gate", N.make_acceptance_gate_node(config))
     g.add_node("approval", N.make_approval_node(config))
@@ -62,7 +64,10 @@ def build_graph(config: Config, runner: Callable[..., Any] | None = None, checkp
     g.add_edge("codebase", "product")
     g.add_edge("product", "planner")
     g.add_edge("planner", "architect")
-    g.add_edge("architect", "acceptance")
+    g.add_edge("architect", "specification")
+    g.add_edge("specification", "spec_preflight")
+    g.add_conditional_edges("spec_preflight", N.route_after_spec_preflight,
+                            {"acceptance": "acceptance", "escalate": "escalate"})
     g.add_edge("acceptance", "approval")
 
     # Approval gate → implement or cancel

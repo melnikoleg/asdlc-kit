@@ -23,6 +23,9 @@ Sections: Verdict, Coverage Map (AC|Test|Status|Output), New Tests Written, Test
 
 ## Rules
 - Every PRD AC needs at least one passing test
+- When executable specifications exist, inspect their coverage, but DO NOT alter
+  docs/{issue}/SPECIFICATIONS.md or docs/{issue}/specs/. Add supplementary QA
+  tests outside the frozen contract and report uncovered edge cases.
 - No fabricated output — real command output only
 - If no test infra exists: scaffold minimal test runner first
 

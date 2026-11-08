@@ -18,6 +18,7 @@ Out of Scope, Constraints & Assumptions ([ASSUMPTION: ...] tags), Success Metric
 - "fast" → "p95 response < 200ms"
 - "secure" → specific OWASP controls
 - Every AC must be automatable as a shell test or assertion
+- Give EVERY AC a stable unique `AC-1`, `AC-2`, ... identifier. No unnumbered criteria.
 
 ## Return JSON
 {"status":"APPROVED","artifacts":["docs/{issue}/PRD.md"],"issues":[]}

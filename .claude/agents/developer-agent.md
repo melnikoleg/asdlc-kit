@@ -32,6 +32,9 @@ Fix mode: the prompt lists failed commands with their output; fix those.
   existing Fix Round headings + 1) with the issues addressed and fresh validation
   output. This heading is the pipeline's fix-round counter — never overwrite prior rounds.
 - ADR constraints are BINDING — never violate them
+- When `SPECIFICATIONS.md` exists, implement its Given/When/Then behavior.
+  Public tests in docs/{issue}/specs/ are frozen on approval: do not edit them,
+  SPECIFICATIONS.md or PRD.md to make tests pass. Fix the implementation instead.
 - NEVER read docs/{issue}/ACCEPTANCE.md — it is a held-out acceptance suite
   graded independently. Implement to the PRD criteria, not to those tests.
 

@@ -2,7 +2,7 @@
 
 **One-command install** for an agent-native Software Development Lifecycle in Claude Code.
 
-7 skills · 9 agents · 3 hooks · 4 rules · 1 command
+7 skills · 10 agents · 3 hooks · 4 rules · 1 command
 
 One pipeline, implemented once: [`runtime/`](runtime/README.md) is a LangGraph state machine that runs the agents in `.claude/agents/` through headless `claude -p`. Skills and `/factory` are thin wrappers around it.
 
@@ -23,13 +23,24 @@ bash install.sh --project=/path/to/project
 
 ```
 codebase-agent (brownfield only) → product → planner (PLAN.md + TEST_STRATEGY.md) → architect
-  → acceptance (held-out suite) → [human approval]
-  → developer → validate: PLAN `Validation:` commands, then `E2E:` against the booted app
+  → specification (--specs only; executable business contracts) → acceptance (held-out suite)
+  → [human approval]
+  → developer → validate: PLAN `Validation:` commands, then approved `Spec:` checks (--specs),
+    then `E2E:` against the booted app
   → reviewer ‖ qa (‖ devops with --devops) → fix loop (max 3)
   → held-out acceptance gate, run against the booted app → PRODUCTION_READINESS.md
 ```
 
 The planner detects the stack and writes `TEST_STRATEGY.md` (type, test layers, how to start the app, healthcheck, e2e command). The runtime boots the app, waits for health, runs the tests, and tears it down, for both the e2e gate and the held-out acceptance gate. UI apps get Playwright, APIs get HTTP-client tests, CLIs get subprocess tests.
+
+## Executable specifications (opt-in)
+
+Run `asdlc-runtime orders "Implement order workflow" --specs` to generate public
+Given/When/Then contracts and runnable tests **before** implementation. A
+preflight validates complete AC coverage; human approval pins the PRD, spec
+file and test sources by SHA-256. Runtime executes these frozen tests during
+validation and rejects contract modifications. The independent held-out final
+gate remains. See [Specifications mode](docs/specifications-mode.md).
 
 ## Usage
 
@@ -46,7 +57,7 @@ Inside Claude Code: `/factory <issue> "<requirement>"`, `/factory <issue> --appr
 `/factory` `/sdlc-status` `/sdlc-deploy` `/code-reviewer` `/security-audit` `/test-writer` `/git-commit` `/ponytail`
 
 ## Agents (9)
-codebase · product · planner · architect · acceptance · developer · reviewer · qa · devops (opt-in)
+codebase · product · planner · architect · specification (opt-in) · acceptance · developer · reviewer · qa · devops (opt-in)
 
 ## Hooks (3)
 - Block destructive bash commands (single source of truth)

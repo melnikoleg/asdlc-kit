@@ -27,7 +27,10 @@ def _normal_prompt(issue: str) -> str:
     return (
         f"Issue: {issue}\n"
         f"Implement docs/{issue}/PLAN.md following docs/{issue}/ADR.md constraints "
-        f"and docs/{issue}/PRD.md acceptance criteria. Write code files and "
+        f"and docs/{issue}/PRD.md acceptance criteria. "
+        f"If docs/{issue}/SPECIFICATIONS.md exists, read it and implement its "
+        f"Given/When/Then scenarios; never modify SPECIFICATIONS.md, PRD.md, "
+        f"or docs/{issue}/specs/ (approved immutable contract). Write code files and "
         f"docs/{issue}/IMPLEMENTATION.md. Make every `E2E:` command in "
         f"docs/{issue}/TEST_STRATEGY.md pass; run them with "
         f"`asdlc-e2e {issue} -- <command>`, which boots the app first. "
@@ -57,7 +60,9 @@ def _fix_prompt(
         + (f"Failed validation/e2e commands:{failed}\n" if failed else "")
         + (f"Read {sources} and address ONLY the blocking issues listed there. " if sources else "")
         + f"Address ONLY these blocking issues. "
-        f"Do not change unrelated files. Re-run validation. "
+        f"Do not change unrelated files or approved specs/tests under docs/{issue}/specs/. "
+        f"Fix failing public specification checks by changing implementation, not the tests. "
+        f"Re-run validation. "
         f"{_HELD_OUT_NOTE.format(issue=issue)} "
         f"Update docs/{issue}/IMPLEMENTATION.md. End with your JSON verdict."
     )

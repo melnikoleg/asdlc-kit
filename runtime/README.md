@@ -27,11 +27,13 @@ remain the single source of truth — this package loads them, it does not fork 
 ## Topology
 
 ```
-START → codebase → product → planner → architect → acceptance → approval ⏸(interrupt)
+START → codebase → product → planner → architect → specification → spec_preflight
+      → acceptance → approval ⏸(interrupt)
       → developer → validate ──fail──▶ developer (fix) | escalate
                           └─pass─▶ [reviewer ‖ qa (‖ devops if --devops)] → aggregate
 
-validate = PLAN.md `Validation:` commands, then TEST_STRATEGY.md `E2E:` against the booted app.
+validate = PLAN.md `Validation:` commands, approved executable `Spec:` checks
+(with --specs), then TEST_STRATEGY.md `E2E:` against the booted app.
 codebase is skipped (no LLM call) on a greenfield repo.
 aggregate ──all APPROVED──▶ acceptance_gate ──pass──▶ readiness → END
                                             └─fail─▶ escalate → END

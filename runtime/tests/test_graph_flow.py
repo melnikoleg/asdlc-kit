@@ -110,6 +110,42 @@ async def test_interrupt_blocks_before_developer(temp_config):
 
 
 @pytest.mark.asyncio
+async def test_specs_mode_accepts_approved_executable_contract(temp_config):
+    docs = temp_config.docs_for(ISSUE)
+    (docs / "specs").mkdir(parents=True, exist_ok=True)
+    (docs / "PRD.md").write_text("## Acceptance Criteria\nAC-1: behaves correctly\n")
+    (docs / "specs" / "check.py").write_text("assert True\n")
+    (docs / "SPECIFICATIONS.md").write_text(
+        "## AC-1 — behavior\nGiven: existing state\nWhen: command sent\n"
+        "Then: expected result\nSpec: python docs/demo/specs/check.py\n"
+    )
+    write_plan(temp_config, "true")
+    write_acceptance(temp_config, "true")
+    thread = {"configurable": {"thread_id": f"{ISSUE}-{uuid.uuid4()}"}}
+    async with open_checkpointer(temp_config) as cp:
+        graph = build_graph(temp_config, runner=mock_runner(), checkpointer=cp)
+        await graph.ainvoke(new_state(ISSUE, "build a thing", specs=True), thread)
+        snap = await graph.aget_state(thread)
+        assert snap.next == ("approval",)
+        final = await graph.ainvoke(Command(resume="approve"), thread)
+    assert final["phase"] == "done"
+    assert final["spec_hash"]
+    assert any(key.startswith("Spec AC-1") for key in final["validation"])
+
+
+@pytest.mark.asyncio
+async def test_specs_preflight_blocks_missing_contract(temp_config):
+    write_plan(temp_config, "true")
+    write_acceptance(temp_config, "true")
+    thread = {"configurable": {"thread_id": f"{ISSUE}-{uuid.uuid4()}"}}
+    async with open_checkpointer(temp_config) as cp:
+        graph = build_graph(temp_config, runner=mock_runner(), checkpointer=cp)
+        final = await graph.ainvoke(new_state(ISSUE, "build a thing", specs=True), thread)
+    assert final["phase"] == "escalated"
+    assert final["spec_error"]
+
+
+@pytest.mark.asyncio
 async def test_happy_path_reaches_done(temp_config):
     out = await drive(temp_config)
     final = out["final"]
