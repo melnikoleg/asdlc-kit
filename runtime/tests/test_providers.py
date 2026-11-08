@@ -28,11 +28,11 @@ def test_default_is_claude(monkeypatch):
 def test_codex_only_does_not_need_claude(real_config):
     cfg = configure_providers(real_config, "codex", {}, replace_overrides=True)
     assert required_providers(cfg) == {"codex"}
-    agent = load_agent("product", cfg)
-    assert agent.model is None or "codex" in agent.model.lower() or agent.model == cfg.codex_model
-    assert "--model" not in build_codex_command(agent, replace(cfg, codex_model=None,
-                                                           codex_model_smart=None,
-                                                           codex_model_overrides={}))
+    no_model_cfg = replace(cfg, codex_model=None, codex_model_smart=None,
+                           codex_model_overrides={})
+    agent = load_agent("product", no_model_cfg)
+    assert agent.model is None  # Claude frontmatter models never leak into Codex
+    assert "--model" not in build_codex_command(agent, no_model_cfg)
 
 
 def test_hybrid_and_role_parsing(real_config):
@@ -40,7 +40,6 @@ def test_hybrid_and_role_parsing(real_config):
     cfg = configure_providers(real_config, "claude", overrides, replace_overrides=True)
     assert cfg.agent_providers == overrides
     assert required_providers(cfg) == {"claude", "codex"}
-    assert "codex" not in required_providers(cfg, devops=False) - {"claude", "codex"}
 
 
 @pytest.mark.parametrize("value", ["nope", "", "CLAUDE", "openai"])

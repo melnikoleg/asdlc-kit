@@ -126,12 +126,14 @@ if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ]; then
   success "docs/ directory created"
 fi
 
-# ─── Copy CLAUDE.md if missing ───────────────────────────────────────────────
+# ─── Copy project instructions if missing (never overwrite user files) ──────
 DST_PARENT="$(dirname "$TARGET_DIR")"
-if [ ! -f "$DST_PARENT/CLAUDE.md" ] && [ -f "$SCRIPT_DIR/CLAUDE.md" ]; then
-  cp "$SCRIPT_DIR/CLAUDE.md" "$DST_PARENT/CLAUDE.md"
-  success "CLAUDE.md installed"
-fi
+for instructions in CLAUDE.md AGENTS.md; do
+  if [ ! -f "$DST_PARENT/$instructions" ] && [ -f "$SCRIPT_DIR/$instructions" ]; then
+    cp "$SCRIPT_DIR/$instructions" "$DST_PARENT/$instructions"
+    success "$instructions installed"
+  fi
+done
 
 # ─── Python runtime (asdlc-runtime, asdlc-e2e) ───────────────────────────────
 if ! command -v claude &>/dev/null && ! command -v codex &>/dev/null; then

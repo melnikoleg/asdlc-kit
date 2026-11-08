@@ -22,7 +22,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from langgraph.types import Command
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .checkpoint import open_checkpointer
 from .config import configure_providers, load_config
@@ -51,7 +51,7 @@ class StartRequest(BaseModel):
     devops: bool = False
     specs: bool = False
     provider: str | None = None
-    agent_providers: dict[str, str] = {}
+    agent_providers: dict[str, str] = Field(default_factory=dict)
 
 
 class ApproveRequest(BaseModel):

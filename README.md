@@ -1,10 +1,10 @@
 # Agentic SDLC Kit (slim)
 
-**One-command install** for an agent-native Software Development Lifecycle in Claude Code.
+**One-command install** for an agent-native Software Development Lifecycle with Claude Code and/or Codex CLI.
 
 7 skills · 10 agents · 3 hooks · 4 rules · 1 command
 
-One pipeline, implemented once: [`runtime/`](runtime/README.md) is a LangGraph state machine that runs the agents in `.claude/agents/` through headless `claude -p`. Skills and `/factory` are thin wrappers around it.
+One pipeline, implemented once: [`runtime/`](runtime/README.md) is a LangGraph state machine that runs role definitions in `.claude/agents/` through either headless `claude -p` or `codex exec`. Skills and `/factory` are thin Claude Code wrappers around the same runtime.
 
 ## Install
 
@@ -42,9 +42,32 @@ file and test sources by SHA-256. Runtime executes these frozen tests during
 validation and rejects contract modifications. The independent held-out final
 gate remains. See [Specifications mode](docs/specifications-mode.md).
 
+## Providers: Claude, Codex or mixed
+
+The default is **Claude**, so existing commands keep working. For Codex-only
+runs, only the Codex CLI needs to be installed and authenticated.
+
+~~~bash
+# All generative agents run on Codex, including executable specifications
+asdlc-runtime orders "Implement order API" --provider codex --specs
+
+# Hybrid: Claude default, Codex writes code, Claude reviews it
+asdlc-runtime orders "Implement order API" --specs \
+  --agent-provider developer=codex
+
+# Resume/approve reuse provider choices saved in the LangGraph checkpoint
+asdlc-runtime orders --approve
+~~~
+
+Choose defaults with ASDLC_PROVIDER=codex, and per-role settings via
+ASDLC_PROVIDER_DEVELOPER=codex. Codex models can be set independently using
+ASDLC_CODEX_MODEL, ASDLC_CODEX_MODEL_SMART, ASDLC_CODEX_MODEL_WORKER,
+or ASDLC_CODEX_MODEL_DEVELOPER. Claude model overrides remain unchanged.
+See [Provider setup](docs/providers.md) for the CLI/API and safety details.
+
 ## Usage
 
-```bash
+~~~bash
 asdlc-runtime auth-api "Build JWT authentication API"   # runs to the approval gate
 asdlc-runtime auth-api --approve                        # implement, test, review
 asdlc-runtime auth-api --resume                         # continue after a crash
@@ -56,7 +79,7 @@ Inside Claude Code: `/factory <issue> "<requirement>"`, `/factory <issue> --appr
 ## Skills
 `/factory` `/sdlc-status` `/sdlc-deploy` `/code-reviewer` `/security-audit` `/test-writer` `/git-commit` `/ponytail`
 
-## Agents (9)
+## Agents (10)
 codebase · product · planner · architect · specification (opt-in) · acceptance · developer · reviewer · qa · devops (opt-in)
 
 ## Hooks (3)
@@ -65,7 +88,7 @@ codebase · product · planner · architect · specification (opt-in) · accepta
 - Validate artifact schemas (requires real evidence blocks)
 
 ## Requirements
-- Claude Code (`claude` on PATH, logged in)
+- One or both authenticated CLIs: Claude Code (`claude`) or Codex (`codex`), depending on provider routing
 - Python 3.10+ (runtime and settings merge)
 - For UI e2e: Node + Playwright (installed by the plan)
 
