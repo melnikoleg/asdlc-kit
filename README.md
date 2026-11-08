@@ -67,7 +67,7 @@ See [Provider setup](docs/providers.md) for the CLI/API and safety details.
 
 ## Usage
 
-~~~bash
+```bash
 asdlc-runtime auth-api "Build JWT authentication API"   # runs to the approval gate
 asdlc-runtime auth-api --approve                        # implement, test, review
 asdlc-runtime auth-api --resume                         # continue after a crash

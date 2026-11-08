@@ -59,6 +59,8 @@ def test_reject_malformed_override():
 
 
 def test_config_env_override(monkeypatch):
+    monkeypatch.delenv("ASDLC_CODEX_MODEL_DEVELOPER", raising=False)
+    monkeypatch.delenv("ASDLC_CODEX_MODEL_SMART", raising=False)
     monkeypatch.setenv("ASDLC_PROVIDER", "codex")
     monkeypatch.setenv("ASDLC_PROVIDER_REVIEWER", "claude")
     monkeypatch.setenv("ASDLC_CODEX_MODEL", "my-codex")
