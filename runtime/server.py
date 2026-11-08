@@ -49,6 +49,7 @@ class StartRequest(BaseModel):
     issue: str
     requirement: str
     devops: bool = False
+    specs: bool = False
 
 
 class ApproveRequest(BaseModel):
@@ -78,7 +79,7 @@ def _shape(result: dict[str, Any]) -> dict[str, Any]:
 async def start(req: StartRequest) -> dict[str, Any]:
     graph = _state["graph"]
     try:
-        initial = new_state(req.issue, req.requirement, devops=req.devops)
+        initial = new_state(req.issue, req.requirement, devops=req.devops, specs=req.specs)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     result = await graph.ainvoke(initial, _thread(req.issue))

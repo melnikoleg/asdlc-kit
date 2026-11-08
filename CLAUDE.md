@@ -23,10 +23,12 @@ Requirement → codebase-agent  → CODEBASE_CONTEXT.md (skipped on greenfield r
              product-agent    → PRD.md
              planner-agent    → PLAN.md + TEST_STRATEGY.md (stack, layers, Start/Healthcheck/E2E)
              architect-agent  → ADR.md
+             specification-agent → SPECIFICATIONS.md + specs/ (with --specs; public/frozen)
              acceptance-agent → ACCEPTANCE.md (held-out; developer never reads it)
              [human approval]
              developer-agent → IMPLEMENTATION.md + code
-             validate (code)  → PLAN `Validation:` commands, then `E2E:` against the booted app
+             validate (code)  → PLAN `Validation:` commands, then approved `Spec:` checks,
+                                then `E2E:` against the booted app
              reviewer-agent  ┐
              qa-agent        ┴── parallel (+ devops-agent with --devops) → REVIEW.md + QA.md
              [fix loop if needed, max 3x]
@@ -63,6 +65,7 @@ All SDLC artifacts are stored in `docs/{issue-name}/`:
 - `PLAN.md` — phased plan with validation commands
 - `TEST_STRATEGY.md` — stack, test layers, how to boot the app, e2e command
 - `ADR.md` — architecture decisions (binding)
+- `SPECIFICATIONS.md` + `specs/` — public executable contracts (with `--specs`, frozen at approval)
 - `ACCEPTANCE.md` — held-out acceptance suite (one runnable check per AC; the developer must not read it)
 - `IMPLEMENTATION.md` — code changes + real validation evidence
 - `REVIEW.md` — adversarial code review verdict

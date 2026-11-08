@@ -20,6 +20,8 @@ Phase = Literal[
     "product",
     "plan",
     "architect",
+    "specification",
+    "spec_preflight",
     "acceptance",
     "awaiting_approval",
     "implement",
@@ -88,6 +90,9 @@ class PipelineState(TypedDict, total=False):
     iteration: int
     approved: bool
     devops: bool
+    specs: bool
+    spec_hash: str | None
+    spec_error: str | None
     # HEAD before the developer's first pass: the reviewer diffs against it.
     base_sha: str | None
     failing_agents: list[str]
@@ -109,7 +114,7 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def new_state(issue: str, requirement: str, devops: bool = False) -> PipelineState:
+def new_state(issue: str, requirement: str, devops: bool = False, specs: bool = False) -> PipelineState:
     issue = validate_issue(issue)
     if not requirement or not requirement.strip():
         raise ValueError("requirement must be a non-empty string")
@@ -121,6 +126,9 @@ def new_state(issue: str, requirement: str, devops: bool = False) -> PipelineSta
         iteration=0,
         approved=False,
         devops=devops,
+        specs=specs,
+        spec_hash=None,
+        spec_error=None,
         failing_agents=[],
         artifacts=[],
         verdicts={},
@@ -138,6 +146,9 @@ _STATE_JSON_FIELDS = (
     "phase",
     "iteration",
     "base_sha",
+    "specs",
+    "spec_hash",
+    "spec_error",
     "failing_agents",
     "artifacts",
     "started_at",

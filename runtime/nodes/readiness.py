@@ -28,6 +28,12 @@ def make_readiness_node(config: Config):
             "## Validation Evidence",
             *_validation_lines(state),
             "",
+            "## Executable Specifications",
+            *([f"- Approved contract: `{state.get('spec_hash')}`"] if state.get("specs")
+              else ["- Disabled for this pipeline"]),
+            *[f"- `{cmd}` → {'PASS' if res.get('passed') else 'FAIL'}"
+              for cmd, res in state.get("validation", {}).items() if cmd.startswith("Spec ")],
+            "",
             "## Held-out Acceptance",
             *_acceptance_lines(state),
             "",

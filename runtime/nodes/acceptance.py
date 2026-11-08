@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import Config
+from ..specifications import SPEC_TAMPERED, preflight
 from ..metrics import build_metric
 from ..state import PipelineState
 from ..validation import all_passed, load_strategy, misconfigured, parse_fields, run_with_app
@@ -62,6 +63,18 @@ def make_acceptance_gate_node(config: Config):
 
     async def _node(state: PipelineState) -> dict[str, Any]:
         docs = config.docs_for(state["issue"])
+        if state.get("specs"):
+            digest, error = preflight(docs)
+            if error or digest != state.get("spec_hash"):
+                update = base_update(state, "review", config)
+                update["acceptance"] = {
+                    SPEC_TAMPERED: {
+                        "command": SPEC_TAMPERED, "exit_code": -1,
+                        "output": error or "approved spec contract modified during review/QA",
+                        "passed": False,
+                    }
+                }
+                return update
         acc_path = docs / ACCEPTANCE_FILE
         commands = (
             parse_fields(acc_path.read_text(encoding="utf-8")).get("Acceptance", [])

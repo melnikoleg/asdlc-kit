@@ -13,6 +13,7 @@ def _prompt(state: PipelineState, config: Config) -> str:
         f"Issue: {issue}\n"
         f"Requirement:\n{state['requirement']}\n\n"
         f"Write docs/{issue}/PRD.md with binary-testable acceptance criteria, "
+        f"and stable AC-1, AC-2, ... identifiers for every criterion, "
         f"following your agent definition and the project rules. "
         f"End with your JSON verdict."
     )

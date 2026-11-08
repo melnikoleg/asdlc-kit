@@ -24,6 +24,7 @@ from .product import make_product_node
 from .qa import make_qa_node
 from .readiness import make_readiness_node
 from .review import make_reviewer_node
+from .specification import (make_specification_node, make_spec_preflight_node, route_after_spec_preflight)
 from .validate import make_route_after_validate, make_validate_node
 
 __all__ = [
@@ -31,6 +32,9 @@ __all__ = [
     "make_product_node",
     "make_planner_node",
     "make_architect_node",
+    "make_specification_node",
+    "make_spec_preflight_node",
+    "route_after_spec_preflight",
     "make_acceptance_author_node",
     "make_acceptance_gate_node",
     "make_route_after_acceptance",

@@ -72,7 +72,7 @@ async def _run(args: argparse.Namespace) -> int:
                 print("error: a requirement is required to start a pipeline", file=sys.stderr)
                 return 2
             try:
-                initial = new_state(args.issue, args.requirement, devops=args.devops)
+                initial = new_state(args.issue, args.requirement, devops=args.devops, specs=args.specs)
             except ValueError as exc:
                 print(f"error: {exc}", file=sys.stderr)
                 return 2
@@ -89,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("issue", help="kebab-case issue name (also the resume thread id)")
     parser.add_argument("requirement", nargs="?", help="requirement text (to start a pipeline)")
     parser.add_argument("--devops", action="store_true", help="also run devops-agent (Docker/CI)")
+    parser.add_argument("--specs", action="store_true", help="enable pre-approved executable business specifications")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--approve", action="store_true", help="approve a paused pipeline")
     group.add_argument("--cancel", action="store_true", help="cancel a paused pipeline")

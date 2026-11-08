@@ -21,6 +21,8 @@ PRD AC Verification (table: AC-N | PASS/FAIL | Evidence).
 
 ## Blocking = must fix
 Security vulnerabilities, broken ACs, ADR violations, missing required tests.
+When present, also check adherence to executable specifications (no weakening
+or bypassing their intent), and flag any attempts to modify frozen spec files.
 
 ## Non-Blocking = never block merge
 Style, minor optimizations, cosmetic issues.

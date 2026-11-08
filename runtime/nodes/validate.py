@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import Config
+from ..specifications import SPEC_TAMPERED, SPEC_INVALID, run_specifications
 from ..state import PipelineState, now_iso, review_agents
 from ..validation import MISCONFIGURED, all_passed, load_strategy, run_validation, run_with_app
 from ._common import base_update
@@ -21,6 +22,10 @@ def make_validate_node(config: Config):
         issue = state["issue"]
         plan_path = config.docs_for(issue) / "PLAN.md"
         results = run_validation(plan_path, config.repo_root)
+        if all_passed(results) and state.get("specs"):
+            # Tests are written BEFORE implementation and pinned at human approval.
+            results.update(run_specifications(config.docs_for(issue), config.repo_root,
+                                              state.get("spec_hash")))
         if all_passed(results):
             # E2E runs only once the cheap checks pass, against a really-booted app.
             strategy = load_strategy(config.docs_for(issue) / "TEST_STRATEGY.md")
@@ -36,7 +41,8 @@ def make_validate_node(config: Config):
         # Validation failure is the developer's to fix; consume one iteration.
         # A gate with no checks is the planner's fault and is routed to escalate.
         update["iteration"] = state.get("iteration", 0) + 1
-        update["failing_agents"] = ["planner" if MISCONFIGURED in results else "developer"]
+        update["failing_agents"] = ["specification" if SPEC_TAMPERED in results or SPEC_INVALID in results else
+                                    "planner" if MISCONFIGURED in results else "developer"]
         update["updated_at"] = now_iso()
         return update
 
@@ -50,7 +56,8 @@ def make_route_after_validate(config: Config):
         validation = state.get("validation", {})
         if all_passed(validation):
             return list(review_agents(state))
-        if MISCONFIGURED in validation or state.get("iteration", 0) > config.max_iterations:
+        if (MISCONFIGURED in validation or SPEC_TAMPERED in validation or
+                SPEC_INVALID in validation or state.get("iteration", 0) > config.max_iterations):
             return "escalate"
         return "developer"
 

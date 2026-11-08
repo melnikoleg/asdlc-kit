@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import Config
+from ..specifications import SPEC_TAMPERED, SPEC_INVALID
 from ..state import PipelineState, now_iso
 from ..validation import MISCONFIGURED, all_passed
 from ._common import base_update
@@ -26,7 +27,15 @@ def make_escalate_node(config: Config):
             (r[MISCONFIGURED]["output"] for r in (state.get("validation", {}), acceptance) if MISCONFIGURED in r),
             None,
         )
-        if cancelled:
+        spec_error = state.get("spec_error")
+        spec_validation = {**state.get("validation", {}), **acceptance}
+        if spec_error:
+            reason = f"Specification preflight or approval failed: {spec_error}"
+        elif SPEC_TAMPERED in spec_validation:
+            reason = f"Approved specification contract changed: {spec_validation[SPEC_TAMPERED]['output']}"
+        elif SPEC_INVALID in spec_validation:
+            reason = f"Specification runner misconfigured: {spec_validation[SPEC_INVALID]['output']}"
+        elif cancelled:
             reason = "Human cancelled at the approval gate."
         elif misconfigured:
             reason = f"Gate misconfigured — {misconfigured}."
