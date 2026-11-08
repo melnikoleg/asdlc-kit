@@ -35,7 +35,7 @@ def build_graph(config: Config, runner: Callable[..., Any] | None = None, checkp
     resume — :func:`runtime.checkpoint.make_checkpointer` provides one.
     """
     if runner is None:
-        from .claude_runner import run_agent as runner  # lazy: keep the runner out of test imports
+        from .runner import run_agent as runner  # lazy provider dispatch; mocks remain injectable
 
     g: StateGraph = StateGraph(PipelineState)
 

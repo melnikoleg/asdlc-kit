@@ -21,8 +21,9 @@ This package moves the deterministic parts **out of the LLM and into graph code*
 | State | Derived from artifact presence | Typed state written by node code, mirrored to `STATE.json` for the dashboard |
 | Resume after crash | `--resume` re-reads JSON | Durable checkpointer (SQLite/Postgres) |
 
-The LLM still does all generative work; the agents, rules and hooks in `.claude/`
-remain the single source of truth — this package loads them, it does not fork them.
+The LLM still does all generative work; agent definitions and rules in `.claude/`
+remain the single source of truth. The runner selects Claude Code or Codex CLI
+per pipeline and optionally per role. Claude Code hooks do not run in Codex.
 
 ## Topology
 
@@ -74,6 +75,12 @@ Swap a whole mix for one run, then compare cost in `docs/{issue}/METRICS.json` /
 the `## Model Economics` section of `PRODUCTION_READINESS.md`.
 
 ## Usage — CLI
+
+Provider selection: `asdlc-runtime demo-feature "Build TODO API" --provider codex --specs`.
+For hybrid routing add `--agent-provider developer=codex` (repeatable).
+Selections are checkpointed and reused on `--approve`/`--resume`. See
+[Provider setup](../docs/providers.md).
+
 
 ```bash
 # Start (runs up to the approval gate, then pauses)

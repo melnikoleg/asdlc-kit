@@ -126,15 +126,19 @@ if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ]; then
   success "docs/ directory created"
 fi
 
-# ─── Copy CLAUDE.md if missing ───────────────────────────────────────────────
+# ─── Copy project instructions if missing (never overwrite user files) ──────
 DST_PARENT="$(dirname "$TARGET_DIR")"
-if [ ! -f "$DST_PARENT/CLAUDE.md" ] && [ -f "$SCRIPT_DIR/CLAUDE.md" ]; then
-  cp "$SCRIPT_DIR/CLAUDE.md" "$DST_PARENT/CLAUDE.md"
-  success "CLAUDE.md installed"
-fi
+for instructions in CLAUDE.md AGENTS.md; do
+  if [ ! -f "$DST_PARENT/$instructions" ] && [ -f "$SCRIPT_DIR/$instructions" ]; then
+    cp "$SCRIPT_DIR/$instructions" "$DST_PARENT/$instructions"
+    success "$instructions installed"
+  fi
+done
 
 # ─── Python runtime (asdlc-runtime, asdlc-e2e) ───────────────────────────────
-command -v claude &>/dev/null || warn "claude CLI not found on PATH - the runtime needs Claude Code"
+if ! command -v claude &>/dev/null && ! command -v codex &>/dev/null; then
+  warn "Neither claude nor codex CLI found on PATH - install one to run agents"
+fi
 if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ] && command -v python3 &>/dev/null; then
   info "Installing runtime into $PROJ_DIR/.asdlc-venv ..."
   if python3 -m venv "$PROJ_DIR/.asdlc-venv" && "$PROJ_DIR/.asdlc-venv/bin/pip" install -q "$SCRIPT_DIR"; then

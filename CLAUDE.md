@@ -1,5 +1,10 @@
 # Agentic SDLC Kit
 
+Agent execution supports Claude Code (default) or Codex CLI, selected via
+`asdlc-runtime <issue> "<requirement>" --provider codex`. An optional
+`--agent-provider developer=codex` overrides one role. The LangGraph topology,
+human approval and deterministic gates are the same for both providers.
+
 This project uses an **agent-native Software Development Lifecycle** where specialized agents own every phase.
 
 ## Quick Start

@@ -107,7 +107,9 @@ def _read_rules_context(rules_dir_str: str, claude_md_str: str) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def resolve_model(node: str, frontmatter_model: str | None, config: Config) -> str | None:
+def resolve_model(
+    node: str, frontmatter_model: str | None, config: Config, provider: str = "claude"
+) -> str | None:
     """Resolve the model for ``node``, most-specific override winning.
 
     Precedence: per-node env override (``ASDLC_MODEL_<NODE>``) → tier default
@@ -115,6 +117,16 @@ def resolve_model(node: str, frontmatter_model: str | None, config: Config) -> s
     the agent's frontmatter ``model:``. This is the single seam that lets a
     whole model mix be swapped for one run without editing agent files.
     """
+    if provider == "codex":
+        override = config.codex_model_overrides.get(node)
+        if override:
+            return override
+        tier = NODE_TIER.get(node)
+        if tier == "smart" and config.codex_model_smart:
+            return config.codex_model_smart
+        if tier == "worker" and config.codex_model_worker:
+            return config.codex_model_worker
+        return config.codex_model  # None = Codex CLI's configured default
     override = config.model_overrides.get(node)
     if override:
         return override
@@ -132,9 +144,10 @@ def load_agent(node: str, config: Config) -> AgentDef:
     if not path.is_file():
         raise FileNotFoundError(f"Agent definition not found: {path}")
     fm, body = _split_frontmatter(path.read_text(encoding="utf-8"))
+    provider = config.agent_providers.get(node, config.provider)
     return AgentDef(
         name=fm.get("name", stem),
-        model=resolve_model(node, fm.get("model") or None, config),
+        model=resolve_model(node, fm.get("model") or None, config, provider=provider),
         tools=_parse_tools(fm.get("tools")),
         body=body,
     )

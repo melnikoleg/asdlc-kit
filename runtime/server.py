@@ -22,10 +22,10 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from langgraph.types import Command
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .checkpoint import open_checkpointer
-from .config import load_config
+from .config import configure_providers, load_config
 from .dashboard import build_dashboard_data, render_html
 from .graph import build_graph
 from .state import new_state
@@ -37,7 +37,7 @@ _state: dict[str, Any] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with open_checkpointer(_config) as cp:
-        _state["graph"] = build_graph(_config, checkpointer=cp)
+        _state["checkpointer"] = cp
         yield
     _state.clear()
 
@@ -50,6 +50,8 @@ class StartRequest(BaseModel):
     requirement: str
     devops: bool = False
     specs: bool = False
+    provider: str | None = None
+    agent_providers: dict[str, str] = Field(default_factory=dict)
 
 
 class ApproveRequest(BaseModel):
@@ -69,6 +71,8 @@ def _shape(result: dict[str, Any]) -> dict[str, Any]:
         }
     return {
         "status": result.get("phase"),
+        "provider": result.get("provider"),
+        "agent_providers": result.get("agent_providers", {}),
         "iteration": result.get("iteration", 0),
         "failing_agents": result.get("failing_agents", []),
         "artifacts": result.get("artifacts", []),
@@ -77,26 +81,40 @@ def _shape(result: dict[str, Any]) -> dict[str, Any]:
 
 @app.post("/pipelines")
 async def start(req: StartRequest) -> dict[str, Any]:
-    graph = _state["graph"]
     try:
-        initial = new_state(req.issue, req.requirement, devops=req.devops, specs=req.specs)
+        config = configure_providers(_config, req.provider, req.agent_providers)
+        initial = new_state(req.issue, req.requirement, devops=req.devops, specs=req.specs,
+                            provider=config.provider, agent_providers=config.agent_providers)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    graph = build_graph(config, checkpointer=_state["checkpointer"])
     result = await graph.ainvoke(initial, _thread(req.issue))
     return _shape(result)
 
 
+async def _graph_for_saved(issue: str):
+    """Rebuild routing from checkpointed choices; requests never cross-contaminate."""
+    probe = build_graph(_config, checkpointer=_state["checkpointer"])
+    snapshot = await probe.aget_state(_thread(issue))
+    if not snapshot.values:
+        raise HTTPException(status_code=404, detail="pipeline not found")
+    config = configure_providers(
+        _config, snapshot.values.get("provider", "claude"),
+        snapshot.values.get("agent_providers", {}), replace_overrides=True,
+    )
+    return build_graph(config, checkpointer=_state["checkpointer"]), snapshot
+
+
 @app.post("/pipelines/{issue}/approve")
 async def approve(issue: str, req: ApproveRequest) -> dict[str, Any]:
-    graph = _state["graph"]
+    graph, snapshot = await _graph_for_saved(issue)
     result = await graph.ainvoke(Command(resume=req.decision), _thread(issue))
     return _shape(result)
 
 
 @app.get("/pipelines/{issue}")
 async def status(issue: str) -> dict[str, Any]:
-    graph = _state["graph"]
-    snapshot = await graph.aget_state(_thread(issue))
+    graph, snapshot = await _graph_for_saved(issue)
     if not snapshot.values:
         raise HTTPException(status_code=404, detail="pipeline not found")
     return {"next": list(snapshot.next), **_shape(snapshot.values)}

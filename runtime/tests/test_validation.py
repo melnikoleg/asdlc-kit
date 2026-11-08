@@ -146,8 +146,19 @@ def test_run_with_app_hits_running_server_then_stops_it(tmp_path):
     cmd = f"curl -sf http://127.0.0.1:{port}/ -o /dev/null"
     res = run_with_app([cmd], strategy, tmp_path, start_timeout=30)
     assert res[cmd]["passed"] is True
-    with pytest.raises(OSError):  # server is gone afterwards
-        socket.create_connection(("127.0.0.1", port), timeout=1).close()
+    # The shell and its child may take a moment to release the listening
+    # socket after the process group receives SIGTERM on loaded CI hosts.
+    import time
+    deadline = time.monotonic() + 3
+    while True:
+        try:
+            connection = socket.create_connection(("127.0.0.1", port), timeout=0.25)
+        except OSError:
+            break
+        connection.close()
+        if time.monotonic() >= deadline:
+            pytest.fail(f"server still listening on port {port} after shutdown")
+        time.sleep(0.05)
 
 
 def test_no_start_runs_commands_plainly(tmp_path):

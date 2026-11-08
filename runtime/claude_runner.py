@@ -39,6 +39,7 @@ class Usage:
     duration_ms: int = 0
     num_turns: int = 0
     model: str | None = None
+    provider: str | None = None
 
     def merge(self, other: "Usage") -> "Usage":
         """Sum numeric usage across sessions (e.g. a run plus its retry)."""
@@ -51,6 +52,7 @@ class Usage:
             duration_ms=self.duration_ms + other.duration_ms,
             num_turns=self.num_turns + other.num_turns,
             model=self.model or other.model,
+            provider=self.provider or other.provider,
         )
 
 
@@ -139,6 +141,7 @@ def _usage_from_payload(payload: dict[str, Any], model: str | None) -> Usage:
         duration_ms=int(payload.get("duration_ms", 0) or 0),
         num_turns=int(payload.get("num_turns", 0) or 0),
         model=model,
+        provider="claude",
     )
 
 
