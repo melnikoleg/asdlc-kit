@@ -37,7 +37,7 @@ def build_codex_command(agent: AgentDef, config: Config) -> list[str]:
 def parse_codex_events(output: str, model: str | None) -> tuple[str, Usage]:
     """Extract the final agent message and real usage from Codex JSONL."""
     message = ""
-    usage = Usage(model=model)
+    usage = Usage(model=model, provider="codex")
     errors: list[str] = []
     completed = False
     for line in output.splitlines():
