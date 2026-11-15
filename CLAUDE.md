@@ -1,9 +1,10 @@
 # Agentic SDLC Kit
 
-Agent execution supports Claude Code (default) or Codex CLI, selected via
-`asdlc-runtime <issue> "<requirement>" --provider codex`. An optional
-`--agent-provider developer=codex` overrides one role. The LangGraph topology,
-human approval and deterministic gates are the same for both providers.
+The LangGraph runtime defaults to Codex Code Mode. Use
+`--provider claude` or `ASDLC_PROVIDER=claude` to run the original Claude Code
+backend. Repeat `--agent-provider NODE=claude|codex` for hybrid pipelines.
+Provider choices are persisted across approval and resume.
+See `AGENTS.md` and `docs/setup/codex-code-mode.md` for the Codex defaults.
 
 This project uses an **agent-native Software Development Lifecycle** where specialized agents own every phase.
 

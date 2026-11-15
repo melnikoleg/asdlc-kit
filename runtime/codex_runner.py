@@ -25,7 +25,13 @@ def build_codex_command(agent: AgentDef, config: Config) -> list[str]:
     # workspace-write. Bash may write temporary files/tests, so it also opts in.
     writable = bool(set(agent.tools) & {"Write", "Edit", "Bash"})
     sandbox = "workspace-write" if writable else "read-only"
-    args = ["codex", "exec", "--json", "--sandbox", sandbox, "--ephemeral"]
+    mode = "true" if config.code_mode else "false"
+    args = [
+        "codex", "exec", "--json", "--sandbox", sandbox, "--ephemeral",
+        "-c", "approval_policy=never",
+        "-c", f"features.code_mode={mode}",
+        "-c", f"features.code_mode_only={mode}",
+    ]
     if agent.model:
         args.extend(["--model", agent.model])
     if not _is_git_workspace(config.repo_root):
@@ -102,6 +108,7 @@ async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[st
         raise RuntimeError(
             f"codex CLI exited {process.returncode}: "
             + stderr.decode("utf-8", "replace")[-1500:]
+            + " (If Code Mode is unavailable, set ASDLC_CODE_MODE=0.)"
         )
     return parse_codex_events(stdout.decode("utf-8", "replace"), agent.model)
 

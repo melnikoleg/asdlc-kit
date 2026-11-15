@@ -121,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--devops", action="store_true", help="also run devops-agent (Docker/CI)")
     parser.add_argument("--specs", action="store_true", help="enable pre-approved executable business specifications")
     parser.add_argument("--provider", choices=("claude", "codex"), default=None,
-                        help="default agent CLI (default: ASDLC_PROVIDER or claude)")
+                        help="default agent CLI (default: ASDLC_PROVIDER or codex)")
     parser.add_argument("--agent-provider", action="append", default=[], metavar="NODE=PROVIDER",
                         help="per-agent override, e.g. developer=codex (repeatable)")
     group = parser.add_mutually_exclusive_group()

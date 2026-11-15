@@ -16,6 +16,10 @@ def _repo_root() -> Path:
     Walks up from this file so the package works regardless of the current
     working directory (CLI, server, tests).
     """
+    cwd = Path.cwd().resolve()
+    for parent in (cwd, *cwd.parents):
+        if (parent / ".claude").is_dir():
+            return parent
     here = Path(__file__).resolve()
     for parent in (here, *here.parents):
         if (parent / ".claude").is_dir():
@@ -38,12 +42,13 @@ class Config:
     model_smart: str | None = None
     model_worker: str | None = None
     model_overrides: dict[str, str] = field(default_factory=dict)
-    provider: str = "claude"
+    provider: str = "codex"
     agent_providers: dict[str, str] = field(default_factory=dict)
     codex_model: str | None = None
     codex_model_smart: str | None = None
     codex_model_worker: str | None = None
     codex_model_overrides: dict[str, str] = field(default_factory=dict)
+    code_mode: bool = True
 
     @property
     def agents_dir(self) -> Path:
@@ -147,7 +152,14 @@ def load_config() -> Config:
         if os.environ.get(f"ASDLC_MODEL_{node.upper()}")
     }
 
-    provider = validate_provider(os.environ.get("ASDLC_PROVIDER", "claude"))
+    # ASDLC_AGENT_BACKEND is the earlier Codex-first setting; ASDLC_PROVIDER
+    # takes precedence and is also supported by the CLI's --provider flag.
+    provider = validate_provider(
+        os.environ.get("ASDLC_PROVIDER", os.environ.get("ASDLC_AGENT_BACKEND", "codex"))
+    )
+    raw_mode = os.environ.get("ASDLC_CODE_MODE", "1").strip().lower()
+    if raw_mode not in {"0", "1", "true", "false", "on", "off"}:
+        raise ValueError("ASDLC_CODE_MODE must be 1/0, true/false, or on/off")
     agent_providers = {
         node: validate_provider(os.environ[f"ASDLC_PROVIDER_{node.upper()}"])
         for node in AGENT_FILE
@@ -174,4 +186,5 @@ def load_config() -> Config:
         codex_model_smart=os.environ.get("ASDLC_CODEX_MODEL_SMART") or None,
         codex_model_worker=os.environ.get("ASDLC_CODEX_MODEL_WORKER") or None,
         codex_model_overrides=codex_model_overrides,
+        code_mode=raw_mode in {"1", "true", "on"},
     )

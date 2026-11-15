@@ -74,6 +74,16 @@ Model resolution (most specific wins): `ASDLC_MODEL_<NODE>` → tier
 Swap a whole mix for one run, then compare cost in `docs/{issue}/METRICS.json` /
 the `## Model Economics` section of `PRODUCTION_READINESS.md`.
 
+## Codex Code Mode defaults
+
+The default provider is Codex with experimental Code Mode enabled. Configure
+hybrid runs using `--provider claude|codex` and repeatable
+`--agent-provider ROLE=PROVIDER`. Saved routing is restored on approve/resume.
+Use `ASDLC_CODE_MODE=0` to disable the experimental flags for an unsupported
+Codex CLI; use `ASDLC_PROVIDER=claude` for legacy Claude execution.
+For full details, see [provider routing](../docs/providers.md) and
+[Code Mode setup](../docs/setup/codex-code-mode.md).
+
 ## Usage — CLI
 
 Provider selection: `asdlc-runtime demo-feature "Build TODO API" --provider codex --specs`.

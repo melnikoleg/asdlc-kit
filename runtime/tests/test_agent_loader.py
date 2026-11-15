@@ -10,7 +10,8 @@ from runtime.config import load_config
 
 @pytest.mark.parametrize("node", list(AGENT_FILE))
 def test_every_agent_loads(node, real_config):
-    agent = load_agent(node, real_config)
+    from runtime.config import configure_providers
+    agent = load_agent(node, configure_providers(real_config, "claude"))
     assert agent.name
     assert agent.model, f"{node} has no model in frontmatter"
     assert agent.tools, f"{node} has no tools in frontmatter"
@@ -77,4 +78,5 @@ def test_load_agent_applies_override(monkeypatch):
     _clear_model_env(monkeypatch)
     monkeypatch.setenv("ASDLC_MODEL_DEVELOPER", "cheap-dev-model")
     cfg = load_config()
-    assert load_agent("developer", cfg).model == "cheap-dev-model"
+    from runtime.config import configure_providers
+    assert load_agent("developer", configure_providers(cfg, "claude")).model == "cheap-dev-model"

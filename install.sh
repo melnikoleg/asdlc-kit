@@ -126,18 +126,33 @@ if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ]; then
   success "docs/ directory created"
 fi
 
-# ─── Copy project instructions if missing (never overwrite user files) ──────
+# ─── Copy CLAUDE.md if missing ───────────────────────────────────────────────
 DST_PARENT="$(dirname "$TARGET_DIR")"
-for instructions in CLAUDE.md AGENTS.md; do
-  if [ ! -f "$DST_PARENT/$instructions" ] && [ -f "$SCRIPT_DIR/$instructions" ]; then
-    cp "$SCRIPT_DIR/$instructions" "$DST_PARENT/$instructions"
-    success "$instructions installed"
+if [ ! -f "$DST_PARENT/CLAUDE.md" ] && [ -f "$SCRIPT_DIR/CLAUDE.md" ]; then
+  cp "$SCRIPT_DIR/CLAUDE.md" "$DST_PARENT/CLAUDE.md"
+  success "CLAUDE.md installed"
+fi
+
+# ─── Codex project defaults (do not clobber user files) ───────────────────────
+if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ]; then
+  if [ ! -f "$PROJ_DIR/AGENTS.md" ]; then
+    cp "$SCRIPT_DIR/AGENTS.md" "$PROJ_DIR/AGENTS.md"
+    success "AGENTS.md installed"
+  else
+    warn "Existing AGENTS.md preserved — merge Code Mode guidance manually"
   fi
-done
+  mkdir -p "$PROJ_DIR/.codex"
+  if [ ! -f "$PROJ_DIR/.codex/config.toml" ]; then
+    cp "$SCRIPT_DIR/.codex/config.toml" "$PROJ_DIR/.codex/config.toml"
+    success "Codex Code Mode defaults installed"
+  else
+    warn "Existing .codex/config.toml preserved — enable Code Mode manually"
+  fi
+fi
 
 # ─── Python runtime (asdlc-runtime, asdlc-e2e) ───────────────────────────────
-if ! command -v claude &>/dev/null && ! command -v codex &>/dev/null; then
-  warn "Neither claude nor codex CLI found on PATH - install one to run agents"
+if ! command -v codex &>/dev/null && ! command -v claude &>/dev/null; then
+  warn "Neither codex nor claude CLI is on PATH — install one to run agents"
 fi
 if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ] && command -v python3 &>/dev/null; then
   info "Installing runtime into $PROJ_DIR/.asdlc-venv ..."

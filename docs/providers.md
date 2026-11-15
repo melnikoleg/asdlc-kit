@@ -9,7 +9,7 @@ both providers receive the same role instructions and shared project rules.
 
 Install and authenticate at least one CLI on PATH, depending on the roles used:
 
-- Claude Code CLI: `claude` (the legacy default; no migration needed).
+- Claude Code CLI: `claude` (legacy, explicitly selected).
 - Codex CLI: `codex`; login with `codex login` or configure API-key auth.
 
 The installer creates project-level AGENTS.md for Codex if it does not
@@ -18,19 +18,19 @@ already exist. It never overwrites a project's existing AGENTS.md.
 ## Common commands
 
 ~~~bash
-# 1) Existing Claude-only pipeline (default)
+# 1) Codex Code Mode pipeline (default)
 asdlc-runtime auth-api "Build auth API" --specs
 
-# 2) Codex-only; Claude need not be installed
+# 2) Explicit Codex-only; Claude need not be installed
 asdlc-runtime auth-api "Build auth API" --provider codex --specs
 
-# 3) Hybrid with Codex implementation and Claude review
+# 3) Hybrid: Codex default with Claude review
 asdlc-runtime auth-api "Build auth API" --specs \
-  --agent-provider developer=codex
-
-# 4) Hybrid with Codex default and Claude reviewer
-asdlc-runtime auth-api "Build auth API" --provider codex --specs \
   --agent-provider reviewer=claude
+
+# 4) Hybrid: Claude default with Codex developer
+asdlc-runtime auth-api "Build auth API" --provider claude --specs \
+  --agent-provider developer=codex
 
 # 5) Human approves after reviewing PRD, PLAN and SPECIFICATIONS
 asdlc-runtime auth-api --approve
@@ -49,7 +49,7 @@ acceptance, developer, reviewer, qa, devops. Only active roles require CLIs.
 ## Environment configuration
 
 ~~~bash
-ASDLC_PROVIDER=codex
+ASDLC_PROVIDER=codex  # default; optional override
 ASDLC_PROVIDER_REVIEWER=claude
 ASDLC_CODEX_MODEL=gpt-6
 ASDLC_CODEX_MODEL_SMART=gpt-6
@@ -81,7 +81,9 @@ endpoint restore provider routing independently of concurrent HTTP requests.
 
 ## Operational and security notes
 
-- The default Claude runner still uses headless `claude -p`.
+- The explicitly selected Claude runner still uses headless `claude -p`.
+- The default Codex runner enables Code Mode / Code Mode Only when supported.
+  For incompatible builds use `ASDLC_CODE_MODE=0`. See [Code Mode setup](setup/codex-code-mode.md).
 - The Codex adapter uses `codex exec --json --sandbox workspace-write` for
   modifying agents and read-only mode for read-only roles. It passes the
   complete role prompt through stdin and parses JSONL final messages and usage.

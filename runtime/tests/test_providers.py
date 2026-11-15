@@ -17,12 +17,13 @@ from runtime.runner import run_agent
 from runtime.state import new_state, mirror_to_disk
 
 
-def test_default_is_claude(monkeypatch):
+def test_default_is_codex(monkeypatch):
     monkeypatch.delenv("ASDLC_PROVIDER", raising=False)
+    monkeypatch.delenv("ASDLC_AGENT_BACKEND", raising=False)
     monkeypatch.delenv("ASDLC_PROVIDER_DEVELOPER", raising=False)
     cfg = load_config()
-    assert cfg.provider == "claude"
-    assert "claude" in required_providers(cfg)
+    assert cfg.provider == "codex"
+    assert required_providers(cfg) == {"codex"}
 
 
 def test_codex_only_does_not_need_claude(real_config):
@@ -159,3 +160,5 @@ async def test_codex_subprocess_receives_role_instructions(real_config, monkeypa
     assert "Product Agent" in captured["prompt"]
     assert "Make a PRD" in captured["prompt"]
     assert "--sandbox" in captured["args"]
+    assert "features.code_mode=true" in captured["args"]
+    assert "features.code_mode_only=true" in captured["args"]
