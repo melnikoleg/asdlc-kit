@@ -16,6 +16,12 @@ def _repo_root() -> Path:
     Walks up from this file so the package works regardless of the current
     working directory (CLI, server, tests).
     """
+    # Installed package is usually outside the target repository. Prefer the
+    # invocation directory (and its parents), then fall back to source checkout.
+    cwd = Path.cwd().resolve()
+    for parent in (cwd, *cwd.parents):
+        if (parent / ".claude").is_dir():
+            return parent
     here = Path(__file__).resolve()
     for parent in (here, *here.parents):
         if (parent / ".claude").is_dir():
