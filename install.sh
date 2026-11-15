@@ -133,8 +133,26 @@ if [ ! -f "$DST_PARENT/CLAUDE.md" ] && [ -f "$SCRIPT_DIR/CLAUDE.md" ]; then
   success "CLAUDE.md installed"
 fi
 
+# ─── Codex project defaults (do not clobber user files) ───────────────────────
+if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ]; then
+  if [ ! -f "$PROJ_DIR/AGENTS.md" ]; then
+    cp "$SCRIPT_DIR/AGENTS.md" "$PROJ_DIR/AGENTS.md"
+    success "AGENTS.md installed"
+  else
+    warn "Existing AGENTS.md preserved — merge Code Mode guidance manually"
+  fi
+  mkdir -p "$PROJ_DIR/.codex"
+  if [ ! -f "$PROJ_DIR/.codex/config.toml" ]; then
+    cp "$SCRIPT_DIR/.codex/config.toml" "$PROJ_DIR/.codex/config.toml"
+    success "Codex Code Mode defaults installed"
+  else
+    warn "Existing .codex/config.toml preserved — enable Code Mode manually"
+  fi
+fi
+
 # ─── Python runtime (asdlc-runtime, asdlc-e2e) ───────────────────────────────
-command -v claude &>/dev/null || warn "claude CLI not found on PATH - the runtime needs Claude Code"
+command -v codex &>/dev/null || warn "codex CLI not found on PATH - the default runtime needs Codex"
+command -v claude &>/dev/null || info "claude CLI not found — optional legacy backend unavailable"
 if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ] && command -v python3 &>/dev/null; then
   info "Installing runtime into $PROJ_DIR/.asdlc-venv ..."
   if python3 -m venv "$PROJ_DIR/.asdlc-venv" && "$PROJ_DIR/.asdlc-venv/bin/pip" install -q "$SCRIPT_DIR"; then

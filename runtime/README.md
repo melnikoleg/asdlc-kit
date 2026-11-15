@@ -1,8 +1,8 @@
 # asdlc-runtime — LangGraph orchestrator for the Agentic SDLC Kit
 
 A deterministic, server-grade orchestration layer for the SDLC pipeline. It runs
-the **same** Claude Code agents defined in `.claude/agents/*.md` (through headless
-`claude -p`), but wires them into a LangGraph state machine so the *topology* is
+the **same** role definitions in `.claude/agents/*.md` (through Codex Code Mode
+by default or headless `claude -p` on request), but wires them into a LangGraph state machine so the *topology* is
 guaranteed by code rather than by the model's good will.
 
 ## Why this exists
@@ -63,10 +63,16 @@ pip install -e '.[dev]'       # tests
 | `DB_URL` | — | Required when backend is `postgres`. |
 | `ASDLC_SQLITE_PATH` | `.asdlc/checkpoints.sqlite` | SQLite checkpoint file. |
 | `ASDLC_MAX_ITERATIONS` | `3` | Fix-loop budget before escalation. |
+| `ASDLC_AGENT_BACKEND` | `codex` | `codex` (default) or `claude` (legacy). |
+| `ASDLC_CODE_MODE` | `1` | Use experimental Codex Code Mode; set `0` for compatible standard tools. |
 | `ASDLC_REPO_ROOT` | auto-detected | Repo containing `.claude/`. |
 | `ASDLC_MODEL_SMART` | — | Override the model for the **smart** tier (product, planner, architect, reviewer). |
 | `ASDLC_MODEL_WORKER` | — | Override the model for the **worker** tier (developer, qa, devops, acceptance). |
 | `ASDLC_MODEL_<NODE>` | — | Override one agent (e.g. `ASDLC_MODEL_DEVELOPER`). Beats the tier override. |
+
+Codex ignores Claude frontmatter model names unless you explicitly override models
+with Codex-compatible names. The legacy Claude backend keeps its original model
+selection behavior. See [Code Mode setup](../docs/setup/codex-code-mode.md).
 
 Model resolution (most specific wins): `ASDLC_MODEL_<NODE>` → tier
 (`ASDLC_MODEL_SMART`/`ASDLC_MODEL_WORKER`) → each agent's frontmatter `model:`.
@@ -104,7 +110,8 @@ uvicorn runtime.server:app
 
 Every agent run records a real metric — the agent (skill) invoked, its model,
 verdict, token counts, cost and duration, all captured from
-`claude -p --output-format json` (no estimates). Records accumulate in pipeline state and are
+`claude -p --output-format json` or Codex JSONL. Codex does not report dollar cost,
+which therefore remains unknown (displayed as zero rather than estimated). Records accumulate in pipeline state and are
 mirrored to `docs/{issue}/METRICS.json` as the graph runs.
 
 Render a self-contained, theme-aware HTML dashboard aggregating every pipeline:
