@@ -40,7 +40,7 @@ def build_codex_command(agent: AgentDef, config: Config) -> list[str]:
     return args
 
 
-def parse_codex_events(output: str, model: str | None) -> tuple[str, Usage]:
+def parse_codex_events(output: str, model: str | None = None) -> tuple[str, Usage]:
     """Extract the final agent message and real usage from Codex JSONL."""
     message = ""
     usage = Usage(model=model, provider="codex")
@@ -103,7 +103,7 @@ async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[st
     except FileNotFoundError:
         raise RuntimeError("codex CLI not found on PATH - install/authenticate Codex") from None
 
-    stdout, stderr = await process.communicate(input=full_prompt.encode("utf-8"))
+    stdout, stderr = await process.communicate(full_prompt.encode("utf-8"))
     if process.returncode != 0:
         raise RuntimeError(
             f"codex CLI exited {process.returncode}: "
