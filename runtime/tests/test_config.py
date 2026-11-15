@@ -45,6 +45,14 @@ def test_invalid_code_mode_value(monkeypatch):
         load_config()
 
 
+def test_installed_runtime_finds_current_project(monkeypatch, tmp_path):
+    _reset(monkeypatch)
+    (tmp_path / ".claude").mkdir()
+    monkeypatch.chdir(tmp_path)
+    cfg = load_config()
+    assert cfg.repo_root == tmp_path
+
+
 def test_postgres_requires_db_url(monkeypatch):
     _reset(monkeypatch)
     monkeypatch.setenv("CHECKPOINT_BACKEND", "postgres")
