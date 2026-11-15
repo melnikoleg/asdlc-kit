@@ -1,5 +1,9 @@
 # Agentic SDLC Kit
 
+The LangGraph runtime defaults to Codex Code Mode. Use
+`ASDLC_AGENT_BACKEND=claude` to run the original Claude Code backend.
+See `AGENTS.md` and `docs/setup/codex-code-mode.md` for the Codex defaults.
+
 This project uses an **agent-native Software Development Lifecycle** where specialized agents own every phase.
 
 ## Quick Start

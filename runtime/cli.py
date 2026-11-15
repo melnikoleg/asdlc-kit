@@ -54,8 +54,11 @@ def _print_final(state: dict) -> None:
 
 async def _run(args: argparse.Namespace) -> int:
     config = load_config()
-    if not shutil.which("claude"):
-        print("error: `claude` CLI not found on PATH - install Claude Code", file=sys.stderr)
+    if not shutil.which(config.agent_backend):
+        print(
+            f"error: `{config.agent_backend}` CLI not found on PATH",
+            file=sys.stderr,
+        )
         return 2
 
     thread = {"configurable": {"thread_id": args.issue}}

@@ -8,7 +8,8 @@ from runtime.config import load_config
 
 
 def _reset(monkeypatch):
-    for var in ("ASDLC_REPO_ROOT", "CHECKPOINT_BACKEND", "DB_URL", "ASDLC_MAX_ITERATIONS"):
+    for var in ("ASDLC_REPO_ROOT", "CHECKPOINT_BACKEND", "DB_URL", "ASDLC_MAX_ITERATIONS",
+                "ASDLC_AGENT_BACKEND", "ASDLC_CODE_MODE"):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -17,6 +18,39 @@ def test_defaults(monkeypatch):
     cfg = load_config()
     assert cfg.checkpoint_backend == "sqlite"
     assert cfg.max_iterations == 3
+    assert cfg.agent_backend == "codex"
+    assert cfg.code_mode is True
+
+
+def test_backend_and_code_mode_overrides(monkeypatch):
+    _reset(monkeypatch)
+    monkeypatch.setenv("ASDLC_AGENT_BACKEND", "claude")
+    monkeypatch.setenv("ASDLC_CODE_MODE", "off")
+    cfg = load_config()
+    assert cfg.agent_backend == "claude"
+    assert cfg.code_mode is False
+
+
+def test_invalid_agent_backend(monkeypatch):
+    _reset(monkeypatch)
+    monkeypatch.setenv("ASDLC_AGENT_BACKEND", "other")
+    with pytest.raises(ValueError, match="ASDLC_AGENT_BACKEND"):
+        load_config()
+
+
+def test_invalid_code_mode_value(monkeypatch):
+    _reset(monkeypatch)
+    monkeypatch.setenv("ASDLC_CODE_MODE", "maybe")
+    with pytest.raises(ValueError, match="ASDLC_CODE_MODE"):
+        load_config()
+
+
+def test_installed_runtime_finds_current_project(monkeypatch, tmp_path):
+    _reset(monkeypatch)
+    (tmp_path / ".claude").mkdir()
+    monkeypatch.chdir(tmp_path)
+    cfg = load_config()
+    assert cfg.repo_root == tmp_path
 
 
 def test_postgres_requires_db_url(monkeypatch):

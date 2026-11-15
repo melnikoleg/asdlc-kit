@@ -1,0 +1,7 @@
+# Codex is the primary agent runtime for this repository.
+# Code Mode and Code Mode Only are experimental and require a compatible
+# Codex CLI plus the codex-code-mode-host executable.
+# Codex only loads project config in trusted workspaces.
+[features]
+code_mode = true
+code_mode_only = true

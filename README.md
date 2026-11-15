@@ -1,10 +1,11 @@
 # Agentic SDLC Kit (slim)
 
-**One-command install** for an agent-native Software Development Lifecycle in Claude Code.
+**One-command install** for an agent-native Software Development Lifecycle.
+Codex Code Mode is the default execution backend; Claude Code remains available.
 
 7 skills · 10 agents · 3 hooks · 4 rules · 1 command
 
-One pipeline, implemented once: [`runtime/`](runtime/README.md) is a LangGraph state machine that runs the agents in `.claude/agents/` through headless `claude -p`. Skills and `/factory` are thin wrappers around it.
+One pipeline, implemented once: [`runtime/`](runtime/README.md) is a LangGraph state machine using the shared agent definitions in `.claude/agents/`. It runs headless Codex in Code Mode by default (or `claude -p` via an explicit override). Skills and `/factory` are thin wrappers around it.
 
 ## Install
 
@@ -44,6 +45,16 @@ gate remains. See [Specifications mode](docs/specifications-mode.md).
 
 ## Usage
 
+Default: Codex CLI with experimental Code Mode and Code Mode Only enabled.
+Requires a compatible `codex` and `codex-code-mode-host` build.
+See [Codex setup and fallback options](docs/setup/codex-code-mode.md).
+
+```bash
+ASDLC_CODE_MODE=0 asdlc-runtime auth-api "Build an API"  # Codex without experimental mode
+ASDLC_AGENT_BACKEND=claude asdlc-runtime auth-api "Build an API"  # legacy Claude
+```
+
+
 ```bash
 asdlc-runtime auth-api "Build JWT authentication API"   # runs to the approval gate
 asdlc-runtime auth-api --approve                        # implement, test, review
@@ -65,7 +76,8 @@ codebase · product · planner · architect · specification (opt-in) · accepta
 - Validate artifact schemas (requires real evidence blocks)
 
 ## Requirements
-- Claude Code (`claude` on PATH, logged in)
+- Codex CLI (`codex` on PATH, authenticated; experimental Code Mode host for defaults)
+- Claude Code (`claude` on PATH) only for the legacy backend
 - Python 3.10+ (runtime and settings merge)
 - For UI e2e: Node + Playwright (installed by the plan)
 

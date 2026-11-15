@@ -1,6 +1,6 @@
 """Runtime configuration sourced from environment variables.
 
-Authentication is whatever the local ``claude`` CLI login already holds.
+Authentication is provided by the chosen Codex (default) or Claude CLI.
 """
 
 from __future__ import annotations
@@ -16,6 +16,12 @@ def _repo_root() -> Path:
     Walks up from this file so the package works regardless of the current
     working directory (CLI, server, tests).
     """
+    # Installed package is usually outside the target repository. Prefer the
+    # invocation directory (and its parents), then fall back to source checkout.
+    cwd = Path.cwd().resolve()
+    for parent in (cwd, *cwd.parents):
+        if (parent / ".claude").is_dir():
+            return parent
     here = Path(__file__).resolve()
     for parent in (here, *here.parents):
         if (parent / ".claude").is_dir():
@@ -38,6 +44,8 @@ class Config:
     model_smart: str | None = None
     model_worker: str | None = None
     model_overrides: dict[str, str] = field(default_factory=dict)
+    agent_backend: str = "codex"
+    code_mode: bool = True
 
     @property
     def agents_dir(self) -> Path:
@@ -92,6 +100,13 @@ def load_config() -> Config:
         if os.environ.get(f"ASDLC_MODEL_{node.upper()}")
     }
 
+    agent_backend = os.environ.get("ASDLC_AGENT_BACKEND", "codex").strip().lower()
+    if agent_backend not in ("codex", "claude"):
+        raise ValueError("ASDLC_AGENT_BACKEND must be 'codex' or 'claude'")
+    code_mode_raw = os.environ.get("ASDLC_CODE_MODE", "1").strip().lower()
+    if code_mode_raw not in ("1", "0", "true", "false", "on", "off"):
+        raise ValueError("ASDLC_CODE_MODE must be 1/0, true/false, or on/off")
+
     return Config(
         repo_root=repo_root,
         checkpoint_backend=backend,
@@ -101,4 +116,6 @@ def load_config() -> Config:
         model_smart=os.environ.get("ASDLC_MODEL_SMART") or None,
         model_worker=os.environ.get("ASDLC_MODEL_WORKER") or None,
         model_overrides=model_overrides,
+        agent_backend=agent_backend,
+        code_mode=code_mode_raw in ("1", "true", "on"),
     )
