@@ -1,6 +1,6 @@
 ---
 name: factory
-description: "Run the SDLC pipeline via the asdlc-runtime. Usage: /factory <issue> \"<requirement>\" [--devops] | /factory <issue> --approve|--cancel|--resume"
+description: "Run the SDLC pipeline via the asdlc-runtime. Usage: /factory <issue> \"<requirement>\" [--devops] [--specs] [--provider claude|codex] [--agent-provider NODE=PROVIDER] | /factory <issue> --approve|--cancel|--resume"
 ---
 
 # /factory
@@ -11,7 +11,7 @@ implementation, deterministic validation + e2e against the booted app, review + 
 held-out acceptance gate, readiness). Never do phase work yourself.
 
 ## Usage
-- `/factory <issue> "<requirement>" [--devops] [--specs]`  start; runs until the approval gate and pauses
+- `/factory <issue> "<requirement>" [--devops] [--specs] [--provider codex] [--agent-provider developer=codex]`  start, pauses for approval
 - `/factory <issue> --approve`                   approve and implement
 - `/factory <issue> --cancel`                    cancel at the gate
 - `/factory <issue> --resume`                    continue from the last checkpoint after a crash

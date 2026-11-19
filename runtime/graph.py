@@ -30,15 +30,12 @@ from . import nodes as N
 def build_graph(config: Config, runner: Callable[..., Any] | None = None, checkpointer=None):
     """Build and compile the pipeline graph.
 
-    ``runner`` defaults to Codex Code Mode (or explicit Claude); tests inject a
+    ``runner`` defaults to the real ``claude -p`` bridge; tests inject a
     mock. A ``checkpointer`` is required for the approval interrupt and durable
     resume — :func:`runtime.checkpoint.make_checkpointer` provides one.
     """
     if runner is None:
-        if config.agent_backend == "codex":
-            from .codex_runner import run_agent as runner
-        else:
-            from .claude_runner import run_agent as runner
+        from .runner import run_agent as runner  # lazy provider dispatch; mocks remain injectable
 
     g: StateGraph = StateGraph(PipelineState)
 

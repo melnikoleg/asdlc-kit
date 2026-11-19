@@ -151,8 +151,9 @@ if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ]; then
 fi
 
 # ─── Python runtime (asdlc-runtime, asdlc-e2e) ───────────────────────────────
-command -v codex &>/dev/null || warn "codex CLI not found on PATH - the default runtime needs Codex"
-command -v claude &>/dev/null || info "claude CLI not found — optional legacy backend unavailable"
+if ! command -v codex &>/dev/null && ! command -v claude &>/dev/null; then
+  warn "Neither codex nor claude CLI is on PATH — install one to run agents"
+fi
 if [ "$MODE" = "project" ] && [ "$TARGET_DIR" != "$GLOBAL_DIR" ] && command -v python3 &>/dev/null; then
   info "Installing runtime into $PROJ_DIR/.asdlc-venv ..."
   if python3 -m venv "$PROJ_DIR/.asdlc-venv" && "$PROJ_DIR/.asdlc-venv/bin/pip" install -q "$SCRIPT_DIR"; then

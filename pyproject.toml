@@ -1,7 +1,7 @@
 [project]
 name = "asdlc-runtime"
 version = "0.1.0"
-description = "LangGraph orchestrator for the Agentic SDLC Kit, running Claude Code agents through `claude -p`"
+description = "LangGraph orchestrator for Agentic SDLC Kit with Claude Code or Codex CLI"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

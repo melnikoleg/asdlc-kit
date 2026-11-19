@@ -29,11 +29,21 @@ prompt loop or skip its human approval gate.
   do not assume the `.claude/hooks/` shell restrictions protect Codex.
 - Record actual test output, not invented evidence.
 
+## Provider routing
+
+- Use `--provider claude` to explicitly select the legacy Claude CLI.
+- Use `--agent-provider reviewer=claude` (repeatable) for a hybrid pipeline.
+- The initial provider choice is checkpointed; do not change it during
+  `--approve` or `--resume`.
+- Inspect PRD, PLAN and optional SPECIFICATIONS artifacts before human approval;
+  do not edit approved specifications or read held-out acceptance material
+  while acting as the developer.
+
 ## Useful commands
 
 - Tests: `python -m pytest runtime/tests -o asyncio_mode=auto`
 - Default pipeline: `asdlc-runtime <issue> "<requirement>"`
-- Legacy Claude pipeline: `ASDLC_AGENT_BACKEND=claude asdlc-runtime <issue> "<requirement>"`
+- Legacy Claude pipeline: `ASDLC_PROVIDER=claude asdlc-runtime <issue> "<requirement>"`
 - Disable experimental Code Mode for CLI compatibility:
   `ASDLC_CODE_MODE=0 asdlc-runtime <issue> "<requirement>"`
 

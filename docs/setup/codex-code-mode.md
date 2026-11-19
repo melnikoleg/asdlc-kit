@@ -42,10 +42,11 @@ without Code Mode until a compatible version is installed:
 ASDLC_CODE_MODE=0 asdlc-runtime auth-api "Build an authentication API"
 ```
 
-To retain the original Claude backend:
+To select the original Claude backend (or a hybrid pipeline):
 
 ```bash
-ASDLC_AGENT_BACKEND=claude asdlc-runtime auth-api "Build an authentication API"
+asdlc-runtime auth-api "Build an authentication API" --provider claude
+asdlc-runtime auth-api "Build an authentication API" --agent-provider reviewer=claude
 ```
 
 To disable experimental Code Mode in an interactive Codex session, override
@@ -56,7 +57,8 @@ codex -c features.code_mode=false -c features.code_mode_only=false
 ```
 
 Codex uses its default model unless a model override is explicitly set through
-`ASDLC_MODEL_<NODE>`, `ASDLC_MODEL_SMART` or `ASDLC_MODEL_WORKER`. The
+`ASDLC_CODEX_MODEL_<NODE>`, `ASDLC_CODEX_MODEL_SMART`, or
+`ASDLC_CODEX_MODEL_WORKER` (or `ASDLC_CODEX_MODEL`). The
 Claude models in agent Markdown frontmatter are intentionally not passed to
 Codex.
 
@@ -66,14 +68,13 @@ Codex.
   operations concurrent. Parallelize independent reads, not dependent writes.
 - The runtime still enforces approval interrupts, test/validation commands,
   held-out acceptance checks and a finite fix loop.
-- `codex exec` runs within the `workspace-write` sandbox with non-interactive
-  approval policy. No dangerous full-access flags are used.
+- `codex exec` uses `read-only` or `workspace-write` sandboxing based
+  on the agent's tool allowlist, with a non-interactive approval policy. No dangerous full-access flags are used.
 - `.claude/hooks/` are Claude-specific. They do **not** enforce shell or file
   restrictions on Codex. Deploy a compatible Codex sandbox/host policy and
   check changes before approval.
-- Codex JSONL reports input/output tokens, but generally does not supply a
-  monetary cost figure; cost remains 0 (unknown) in the existing dashboard
-  rather than being estimated.
+- Codex JSONL reports input/output tokens, but generally does not supply an
+  authoritative monetary cost. Cost is not reported as a verified Codex spend.
 - Experimental features may not run on the currently installed Codex build.
   The runtime reports failure instead of silently switching agents.
 

@@ -91,6 +91,8 @@ class PipelineState(TypedDict, total=False):
     approved: bool
     devops: bool
     specs: bool
+    provider: str
+    agent_providers: dict[str, str]
     spec_hash: str | None
     spec_error: str | None
     # HEAD before the developer's first pass: the reviewer diffs against it.
@@ -114,10 +116,20 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def new_state(issue: str, requirement: str, devops: bool = False, specs: bool = False) -> PipelineState:
+def new_state(
+    issue: str, requirement: str, devops: bool = False, specs: bool = False,
+    provider: str = "claude", agent_providers: dict[str, str] | None = None,
+) -> PipelineState:
     issue = validate_issue(issue)
     if not requirement or not requirement.strip():
         raise ValueError("requirement must be a non-empty string")
+    from .config import validate_provider
+    from .agent_loader import AGENT_FILE
+    validate_provider(provider)
+    for node, value in (agent_providers or {}).items():
+        if node not in AGENT_FILE:
+            raise ValueError(f"unknown agent provider override {node!r}")
+        validate_provider(value)
     ts = now_iso()
     return PipelineState(
         issue=issue,
@@ -127,6 +139,8 @@ def new_state(issue: str, requirement: str, devops: bool = False, specs: bool = 
         approved=False,
         devops=devops,
         specs=specs,
+        provider=provider,
+        agent_providers=dict(agent_providers or {}),
         spec_hash=None,
         spec_error=None,
         failing_agents=[],
@@ -147,6 +161,8 @@ _STATE_JSON_FIELDS = (
     "iteration",
     "base_sha",
     "specs",
+    "provider",
+    "agent_providers",
     "spec_hash",
     "spec_error",
     "failing_agents",

@@ -46,6 +46,7 @@ def build_metric(node: str, status: str, usage: "Usage | None", iteration: int) 
     return {
         "node": node,
         "agent": AGENT_FILE.get(node, node),
+        "provider": u.provider or "unknown",
         "model": u.model,
         "status": status,
         "iteration": iteration,
@@ -147,6 +148,8 @@ def economics_lines(metrics: list[dict[str, Any]]) -> list[str]:
         "| Agent | Model | Tokens | Cost |",
         "|-------|-------|--------|------|",
     ]
+    if any(m.get("provider") == "codex" for m in metrics):
+        lines.insert(3, "- Codex reports tokens but not verified USD cost; total excludes Codex spend.")
     for row in sorted(by_agent.values(), key=lambda r: r["total_tokens"], reverse=True):
         agent = row["agent"]
         lines.append(

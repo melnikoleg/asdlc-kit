@@ -1,12 +1,12 @@
 """Runtime configuration sourced from environment variables.
 
-Authentication is provided by the chosen Codex (default) or Claude CLI.
+Authentication uses the selected provider CLI login (Claude or Codex).
 """
 
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 
@@ -16,8 +16,6 @@ def _repo_root() -> Path:
     Walks up from this file so the package works regardless of the current
     working directory (CLI, server, tests).
     """
-    # Installed package is usually outside the target repository. Prefer the
-    # invocation directory (and its parents), then fall back to source checkout.
     cwd = Path.cwd().resolve()
     for parent in (cwd, *cwd.parents):
         if (parent / ".claude").is_dir():
@@ -44,7 +42,12 @@ class Config:
     model_smart: str | None = None
     model_worker: str | None = None
     model_overrides: dict[str, str] = field(default_factory=dict)
-    agent_backend: str = "codex"
+    provider: str = "codex"
+    agent_providers: dict[str, str] = field(default_factory=dict)
+    codex_model: str | None = None
+    codex_model_smart: str | None = None
+    codex_model_worker: str | None = None
+    codex_model_overrides: dict[str, str] = field(default_factory=dict)
     code_mode: bool = True
 
     @property
@@ -61,6 +64,55 @@ class Config:
 
     def docs_for(self, issue: str) -> Path:
         return self.docs_dir / issue
+
+
+PROVIDERS = ("claude", "codex")
+
+
+def validate_provider(provider: str) -> str:
+    if not isinstance(provider, str) or provider not in PROVIDERS:
+        raise ValueError(f"provider must be one of {PROVIDERS}, got {provider!r}")
+    return provider
+
+
+def configure_providers(
+    config: Config,
+    provider: str | None = None,
+    agent_providers: dict[str, str] | None = None,
+    *,
+    replace_overrides: bool = False,
+) -> Config:
+    """Select per-run providers; overrides are immutable across resume."""
+    from .agent_loader import AGENT_FILE
+
+    selected = validate_provider(provider if provider is not None else config.provider)
+    overrides = {} if replace_overrides else dict(config.agent_providers)
+    for node, value in (agent_providers or {}).items():
+        if node not in AGENT_FILE:
+            raise ValueError(f"unknown agent {node!r}; expected one of {', '.join(AGENT_FILE)}")
+        overrides[node] = validate_provider(value)
+    return replace(config, provider=selected, agent_providers=overrides)
+
+
+def required_providers(config: Config, *, devops: bool = False) -> set[str]:
+    from .agent_loader import AGENT_FILE
+    return {
+        config.agent_providers.get(node, config.provider)
+        for node in AGENT_FILE
+        if devops or node != "devops"
+    }
+
+
+def parse_agent_provider_args(entries: list[str]) -> dict[str, str]:
+    """Parse repeated --agent-provider NODE=codex|claude values."""
+    from .agent_loader import AGENT_FILE
+    result: dict[str, str] = {}
+    for entry in entries:
+        node, separator, provider = entry.partition("=")
+        if not separator or node not in AGENT_FILE:
+            raise ValueError(f"expected --agent-provider NODE=claude|codex, got {entry!r}")
+        result[node] = validate_provider(provider)
+    return result
 
 
 def load_config() -> Config:
@@ -100,12 +152,24 @@ def load_config() -> Config:
         if os.environ.get(f"ASDLC_MODEL_{node.upper()}")
     }
 
-    agent_backend = os.environ.get("ASDLC_AGENT_BACKEND", "codex").strip().lower()
-    if agent_backend not in ("codex", "claude"):
-        raise ValueError("ASDLC_AGENT_BACKEND must be 'codex' or 'claude'")
-    code_mode_raw = os.environ.get("ASDLC_CODE_MODE", "1").strip().lower()
-    if code_mode_raw not in ("1", "0", "true", "false", "on", "off"):
+    # ASDLC_AGENT_BACKEND is the earlier Codex-first setting; ASDLC_PROVIDER
+    # takes precedence and is also supported by the CLI's --provider flag.
+    provider = validate_provider(
+        os.environ.get("ASDLC_PROVIDER", os.environ.get("ASDLC_AGENT_BACKEND", "codex"))
+    )
+    raw_mode = os.environ.get("ASDLC_CODE_MODE", "1").strip().lower()
+    if raw_mode not in {"0", "1", "true", "false", "on", "off"}:
         raise ValueError("ASDLC_CODE_MODE must be 1/0, true/false, or on/off")
+    agent_providers = {
+        node: validate_provider(os.environ[f"ASDLC_PROVIDER_{node.upper()}"])
+        for node in AGENT_FILE
+        if os.environ.get(f"ASDLC_PROVIDER_{node.upper()}")
+    }
+    codex_model_overrides = {
+        node: os.environ[f"ASDLC_CODEX_MODEL_{node.upper()}"]
+        for node in AGENT_FILE
+        if os.environ.get(f"ASDLC_CODEX_MODEL_{node.upper()}")
+    }
 
     return Config(
         repo_root=repo_root,
@@ -116,6 +180,11 @@ def load_config() -> Config:
         model_smart=os.environ.get("ASDLC_MODEL_SMART") or None,
         model_worker=os.environ.get("ASDLC_MODEL_WORKER") or None,
         model_overrides=model_overrides,
-        agent_backend=agent_backend,
-        code_mode=code_mode_raw in ("1", "true", "on"),
+        provider=provider,
+        agent_providers=agent_providers,
+        codex_model=os.environ.get("ASDLC_CODEX_MODEL") or None,
+        codex_model_smart=os.environ.get("ASDLC_CODEX_MODEL_SMART") or None,
+        codex_model_worker=os.environ.get("ASDLC_CODEX_MODEL_WORKER") or None,
+        codex_model_overrides=codex_model_overrides,
+        code_mode=raw_mode in {"1", "true", "on"},
     )

@@ -20,6 +20,23 @@ bash install.sh --global
 bash install.sh --project=/path/to/project
 ```
 
+## Provider routing
+
+The pipeline supports both CLIs. The default is **Codex with Code Mode**; Claude
+remains available by explicit request. The same checkpointed graph runs all
+roles, including hybrid pipelines:
+
+```bash
+asdlc-runtime orders "Implement order API" --specs
+asdlc-runtime orders "Implement order API" --provider claude
+asdlc-runtime orders "Implement order API" --agent-provider reviewer=claude
+asdlc-runtime orders --approve  # restores saved provider routing
+```
+
+Use `ASDLC_PROVIDER` and per-role `ASDLC_PROVIDER_<NODE>` to set defaults;
+Codex model names are configured independently with `ASDLC_CODEX_MODEL*`.
+See [provider routing](docs/providers.md) and [Code Mode setup](docs/setup/codex-code-mode.md).
+
 ## Pipeline
 
 ```

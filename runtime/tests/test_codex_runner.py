@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from runtime.codex_runner import _codex_model, parse_codex_events, run_agent
+from runtime.codex_runner import parse_codex_events, run_agent
 from runtime import codex_runner
 
 
@@ -31,7 +31,7 @@ def test_codex_jsonl_collects_latest_message_and_turn_usage():
 def test_codex_jsonl_fails_closed():
     with pytest.raises(RuntimeError, match="no final agent message"):
         parse_codex_events('{"type":"turn.completed"}')
-    with pytest.raises(RuntimeError, match="reported an error"):
+    with pytest.raises(RuntimeError, match="reported error"):
         parse_codex_events(
             '{"type":"item.completed","item":{"type":"agent_message","text":"fine"}}\n'
             '{"type":"turn.failed","message":"tool failed"}'
@@ -39,7 +39,10 @@ def test_codex_jsonl_fails_closed():
 
 
 def test_codex_does_not_use_claude_frontmatter_models(real_config):
-    assert _codex_model("product", real_config) is None
+    from runtime.agent_loader import load_agent
+    from runtime.config import configure_providers
+    cfg = configure_providers(real_config, "codex", replace_overrides=True)
+    assert load_agent("product", cfg).model is None
 
 
 @pytest.mark.asyncio
@@ -90,7 +93,8 @@ async def test_codex_runner_compatible_mode_without_code_mode(
         async def communicate(self, supplied):
             return (
                 b'{"type":"item.completed","item":{"type":"agent_message",'
-                b'"text":"{\\"status\\":\\"APPROVED\\"}"}}\n',
+                b'"text":"{\\"status\\":\\"APPROVED\\"}"}}\n'
+                b'{"type":"turn.completed","usage":{}}\n',
                 b"",
             )
 
