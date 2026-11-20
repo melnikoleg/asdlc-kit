@@ -20,7 +20,7 @@ CACHEABLE_ROLES = frozenset({
 
 def normalize_task(prompt: str) -> str:
     """Lift only the issue identifier. Keep all other task text exact."""
-    found = re.search(r"(?m)^Issue: ([a-z0-9][a-z0-9._-]{0,99})\\b", prompt)
+    found = re.search(r"(?m)^Issue: ([a-z0-9][a-z0-9._-]{0,99})\b", prompt)
     if not found:
         return prompt
     issue = found.group(1)
