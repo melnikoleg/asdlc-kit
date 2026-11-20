@@ -88,7 +88,8 @@ class Executor:
                     # No host secrets, mounts or network; writable output is
                     # ephemeral and all inherited capabilities are dropped.
                     args = [
-                        "docker", "run", "--rm", "--network", "none", "--pids-limit", "64",
+                        "docker", "run", "--rm", "--pull", "never",
+                        "--network", "none", "--pids-limit", "64",
                         "--memory", "512m", "--cpus", "1", "--cap-drop", "ALL",
                         "--security-opt", "no-new-privileges", "--read-only",
                         "--user", f"{os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") else "65534:65534",

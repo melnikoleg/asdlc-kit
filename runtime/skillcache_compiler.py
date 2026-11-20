@@ -140,7 +140,8 @@ def find_capsules(root: Path, role: str, request: str, workspace_hash: str) -> l
             raw = json.loads(file.read_text(encoding="utf-8"))
             validate_capsule(raw, require_provenance=True)
             if (raw["role"] == role and raw["request_sha256"] == target
-                    and raw["workspace_sha256"] == workspace_hash):
+                    and raw["workspace_sha256"] == workspace_hash
+                    and file.stem == capsule_id(raw)):
                 results.append(raw)
         except (OSError, UnicodeError, KeyError, ValueError, TypeError, CapsuleError):
             continue

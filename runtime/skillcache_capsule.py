@@ -94,9 +94,9 @@ def validate_capsule(raw: Any, *, require_provenance: bool = False) -> dict[str,
             _argv(program.get(field))
         for field in ("inputs", "outputs"):
             ids = program.get(field, [])
-            if not isinstance(ids, list) or len(ids) > 24 or len(ids) != len(set(
-                str(i) for i in ids
-            )):
+            if not isinstance(ids, list) or len(ids) > 24 or any(
+                not isinstance(i, str) for i in ids
+            ) or len(ids) != len(set(ids)):
                 raise CapsuleError("program bindings must be unique")
             if any(i not in bindings for i in ids):
                 raise CapsuleError("program binding is undeclared")
