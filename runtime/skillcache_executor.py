@@ -65,7 +65,7 @@ class Executor:
             raise CapsuleError("docker unavailable; deoptimize to source skill")
 
     def _program(self, name: str, bindings: dict[str, Any], workspace: Path,
-                 output_dir: Path) -> dict[str, Any]:
+                 output_dir: Path, *, check_only: bool = False) -> dict[str, Any]:
         """Execute one program in an isolated container or explicit test runner."""
         program = self.capsule["programs"][name]
         with tempfile.TemporaryDirectory(prefix="asdlc-capsule-") as base:
@@ -81,7 +81,7 @@ class Executor:
                                       ensure_ascii=False), encoding="utf-8")
             os.chmod(inp, 0o600)
             # Program checks are always run in the same sandbox as execution.
-            for key in ("check", "command"):
+            for key in (("check",) if check_only else ("check", "command")):
                 argv = [a.replace("{package}", "/capsule" if self.sandbox == "docker"
                                   else str(source)) for a in program[key]]
                 if self.sandbox == "docker":
@@ -94,7 +94,7 @@ class Executor:
                         "--security-opt", "no-new-privileges", "--read-only",
                         "--user", f"{os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") else "65534:65534",
                         "--tmpfs", "/tmp:rw,nosuid,size=64m",
-                        "-v", f"{source}:/capsule:ro",
+                        "-v", f"{source}:/capsule:rw",
                         "-v", f"{inp}:/input.json:ro",
                         "-v", f"{workspace}:/workspace:ro",
                         "-v", f"{output_dir}:/output:rw",
@@ -143,6 +143,8 @@ class Executor:
                     if not expected.issubset(values):
                         raise CapsuleError("program omitted declared outputs")
                     return values
+            if check_only:
+                return {}
         raise CapsuleError("program did not execute")
 
     def start(self, bindings: dict[str, Any], workspace: Path, session: Path) -> dict[str, Any]:
@@ -292,6 +294,12 @@ def qualify(candidate: dict[str, Any], workspace: Path, *, sandbox: str = "docke
                 return False, "symlinks are not allowed in qualification workspace"
             session = Path(base) / "session.json"
             executor = Executor(candidate, dest, sandbox=sandbox, docker_image=docker_image)
+            # Gate 2 is separate from execution: *every* program check must
+            # pass before Gate 3 begins replay in this fresh workspace.
+            checks = Path(base) / "checks"
+            checks.mkdir()
+            for name in candidate["programs"]:
+                executor._program(name, {}, dest, checks, check_only=True)
             result = executor.start(
                 {k: v for k, v in examples.items() if k in candidate["bindings"]},
                 dest, session
