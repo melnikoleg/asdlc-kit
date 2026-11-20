@@ -190,7 +190,7 @@ async def compile_observation(*, root: Path, role: str, provider: str,
             validate_capsule(candidate, require_provenance=True)
             if candidate["form"] == "textual":
                 return publish_capsule(root, candidate), "textual fallback"
-            qualified, reason = qualify(candidate, root, sandbox=sandbox)
+            qualified, reason = await asyncio.to_thread(qualify, candidate, root, sandbox=sandbox)
             if qualified:
                 return publish_capsule(root, candidate), "hybrid qualified"
             last_error = reason

@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
+import shutil
+import subprocess
+import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -16,7 +19,8 @@ from runtime.skillcache_compiler import (
     compile_observation, find_capsules, publish_capsule,
 )
 from runtime.skillcache_trace import codex_trace, claude_trace, sanitize
-from runtime.runner import normalize_task
+from runtime.runner import normalize_task, _task_request
+from runtime.skill_cache import workspace_fingerprint
 
 
 def program_body(expression: str, output: str) -> str:
@@ -37,7 +41,7 @@ def make_program(code, inputs, outputs):
     }
 
 
-def capsule(*, model_step=False):
+def capsule(*, model_step=False, workspace=None):
     steps = [
         {"instruction": "Compute first result", "program": "double"},
     ]
@@ -60,7 +64,7 @@ def capsule(*, model_step=False):
         "schema_version": 1, "form": "hybrid", "name": "trace_based_math",
         "role": "codebase", "description": "Observed arithmetic operation on input",
         "request_sha256": digest(b"same request"),
-        "workspace_sha256": digest(b"workspace"),
+        "workspace_sha256": workspace_fingerprint(workspace) if workspace else digest(b"workspace"),
         "trace_sha256": digest(b"observed trace"),
         "bindings": bindings, "programs": programs, "steps": steps,
         "verification": [],
@@ -110,7 +114,7 @@ def test_rejects_executable_as_shell_metacommand():
 
 
 def test_continuation_and_bindings(tmp_path):
-    raw = capsule()
+    raw = capsule(workspace=tmp_path)
     session = tmp_path / "session.json"
     engine = Executor(raw, tmp_path, sandbox="local-test")
     missing = engine.start({}, tmp_path, session)
@@ -126,7 +130,7 @@ def test_continuation_and_bindings(tmp_path):
 
 
 def test_model_handoff_and_compiled_continuation(tmp_path):
-    raw = capsule(model_step=True)
+    raw = capsule(model_step=True, workspace=tmp_path)
     session = tmp_path / "session.json"
     engine = Executor(raw, tmp_path, sandbox="local-test")
     handback = engine.start({"value": 7}, tmp_path, session)
@@ -140,7 +144,7 @@ def test_model_handoff_and_compiled_continuation(tmp_path):
 
 
 def test_retry_and_program_failed_deopts_to_model(tmp_path):
-    raw = capsule(model_step=True)
+    raw = capsule(model_step=True, workspace=tmp_path)
     raw["programs"]["double"]["files"]["main.py"] = "raise SystemExit('fail')\n"
     session = tmp_path / "session.json"
     engine = Executor(raw, tmp_path, sandbox="local-test")
@@ -156,16 +160,16 @@ def test_retry_and_program_failed_deopts_to_model(tmp_path):
 
 
 def test_qualification_three_gates_with_model_step(tmp_path):
-    good, detail = qualify(capsule(model_step=True), tmp_path, sandbox="local-test")
+    good, detail = qualify(capsule(model_step=True, workspace=tmp_path), tmp_path, sandbox="local-test")
     assert good is True, detail
-    bad = capsule(model_step=True)
+    bad = capsule(model_step=True, workspace=tmp_path)
     bad["examples"].pop("adjust")
     qualified, msg = qualify(bad, tmp_path, sandbox="local-test")
     assert not qualified and "missing" in msg
 
 
 def test_qualification_rejects_bad_program(tmp_path):
-    bad = capsule()
+    bad = capsule(workspace=tmp_path)
     bad["programs"]["double"]["files"]["main.py"] = "def no_syntax(:\n"
     assert qualify(bad, tmp_path, sandbox="local-test")[0] is False
 
@@ -237,8 +241,15 @@ def test_prompt_key_lifts_issue_only():
 @pytest.mark.asyncio
 async def test_trace_grounded_compiler_retries_and_publishes(tmp_path, monkeypatch):
     from runtime import skillcache_compiler
-    generated = capsule()
+    generated = capsule(workspace=tmp_path)
     calls = []
+    event_loop_thread = threading.get_ident()
+
+    def check_off_loop(*args, **kwargs):
+        assert threading.get_ident() != event_loop_thread
+        return qualify(*args, **kwargs)
+
+    monkeypatch.setattr(skillcache_compiler, "qualify", check_off_loop)
 
     async def fake_provider(provider, prompt):
         calls.append(prompt)
@@ -249,7 +260,7 @@ async def test_trace_grounded_compiler_retries_and_publishes(tmp_path, monkeypat
         "command": "python3 -c 'print(1)'", "output": "1", "exit_code": 0}]}
     path, detail = await compile_observation(
         root=tmp_path, role="codebase", provider="codex",
-        request="same request", workspace_hash=digest(b"workspace"),
+        request="same request", workspace_hash=workspace_fingerprint(tmp_path),
         source_skill="# Sample skill", trace=trace, sandbox="local-test"
     )
     assert path is not None, detail
@@ -268,7 +279,7 @@ async def test_compiler_cold_fallback_with_no_evidence(tmp_path, monkeypatch):
     monkeypatch.setattr(skillcache_compiler, "_invoke_provider", fake_provider)
     path, reason = await compile_observation(
         root=tmp_path, role="codebase", provider="codex",
-        request="task", workspace_hash=digest(b"workspace"),
+        request="task", workspace_hash=workspace_fingerprint(tmp_path),
         source_skill="skill", trace={"successful": False, "events": []},
         sandbox="local-test"
     )
@@ -293,3 +304,151 @@ def test_state_rejects_invalid_match_mode():
     from runtime.state import new_state
     with pytest.raises(ValueError, match="skill_cache_match"):
         new_state("valid-issue", "task", skill_cache_match="magic")
+
+
+def test_planner_exact_match_depends_on_prd(tmp_path):
+    from runtime.nodes.planner import _prompt
+
+    def request(issue, requirement):
+        docs = tmp_path / "docs" / issue
+        docs.mkdir(parents=True, exist_ok=True)
+        (docs / "PRD.md").write_text(requirement)
+        return _task_request("planner", _prompt({"issue": issue}, None), tmp_path)
+
+    first = request("orders", "Orders API")
+    assert first == request("orders-again", "Orders API")
+    assert first != request("signup", "User signup")
+
+
+def test_qualification_and_execution_share_filtered_inputs(tmp_path):
+    docs = tmp_path / "docs" / "example"
+    docs.mkdir(parents=True)
+    (docs / "PRD.md").write_text("public")
+    private = [docs / "ACCEPTANCE.md", docs / "STATE.json", tmp_path / ".env",
+               tmp_path / ".asdlc" / "checkpoints.sqlite", docs / "IMPLEMENTATION.md"]
+    for path in private:
+        path.parent.mkdir(exist_ok=True)
+        path.write_text("fixture")
+    raw = capsule(workspace=tmp_path)
+    raw["role"] = "planner"
+    prog = raw["programs"]["double"]
+    checks = ("from pathlib import Path\n"
+              "assert Path('docs/example/PRD.md').read_text() == 'public'\n"
+              f"assert not any(Path(p).exists() for p in {[str(p.relative_to(tmp_path)) for p in private]!r})\n")
+    prog["files"]["check.py"] = checks
+    prog["check"] = ["python3", "{package}/check.py"]
+    prog["files"]["main.py"] = checks + prog["files"]["main.py"]
+    ok, reason = qualify(raw, tmp_path, sandbox="local-test")
+    assert ok, reason
+    session = tmp_path / ".asdlc" / "session.json"
+    engine = Executor(raw, tmp_path, sandbox="local-test")
+    assert engine.start({}, tmp_path, session)["status"] == "needs_bindings"
+    assert engine.resume({"value": 3}, tmp_path, session)["status"] == "complete"
+
+
+def test_session_checks_workspace_before_start_and_continue(tmp_path):
+    raw = capsule(workspace=tmp_path)
+    session = tmp_path / ".asdlc" / "session.json"
+    engine = Executor(raw, tmp_path, sandbox="local-test")
+    engine.start({}, tmp_path, session)
+    saved = session.read_bytes()
+    (tmp_path / "app.py").write_text("pass")
+    with pytest.raises(CapsuleError, match="workspace"):
+        engine.resume({"value": 3}, tmp_path, session)
+    assert session.read_bytes() == saved
+    other = session.with_name("other.json")
+    with pytest.raises(CapsuleError, match="workspace"):
+        engine.start({}, tmp_path, other)
+    assert not other.exists()
+
+
+def test_interrupted_session_retries_with_committed_outputs(tmp_path, monkeypatch):
+    raw = capsule(model_step=True, workspace=tmp_path)
+    session = tmp_path / ".asdlc" / "session.json"
+    engine = Executor(raw, tmp_path, sandbox="local-test")
+
+    def interrupted(name, bindings, workspace, output_dir):
+        if name == "double":
+            (output_dir / "first").write_text("done")
+            return {"doubled": 6}
+        assert (output_dir / "first").read_text() == "done"
+        (output_dir / "partial").touch()
+        with pytest.raises(CapsuleError, match="busy"):
+            engine.resume({}, tmp_path, session)
+        raise KeyboardInterrupt
+
+    with monkeypatch.context() as patch:
+        patch.setattr(engine, "_program", interrupted)
+        assert engine.start({"value": 3}, tmp_path, session)["status"] == "your_steps"
+        with pytest.raises(KeyboardInterrupt):
+            engine.resume({"adjust": 1}, tmp_path, session)
+    done = engine.resume({}, tmp_path, session)
+    assert done["completed"] == [{"program": "finalize", "result": {"final": 7}}]
+    staged = Path(done["staging_directory"])
+    assert (staged / "first").read_text() == "done"
+    assert not (staged / "partial").exists()
+
+
+@pytest.mark.parametrize("stream", ["stdout", "stderr"])
+def test_output_budget_applies_to_both_streams(tmp_path, monkeypatch, stream):
+    from runtime import skillcache_executor as executor
+
+    monkeypatch.setattr(executor, "MAX_RESULT_BYTES", 32)
+    with pytest.raises(CapsuleError, match="output too large"):
+        executor._run_bounded(
+            [sys.executable, "-c", f"import sys; sys.{stream}.write('x' * 33)"],
+            cwd=tmp_path, env=None, timeout=5,
+        )
+
+
+@pytest.fixture
+def docker_image():
+    if not shutil.which("docker") or subprocess.run(
+        ["docker", "image", "inspect", "python:3.11-slim"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
+    ).returncode:
+        pytest.skip("requires local python:3.11-slim Docker image")
+
+
+def test_published_capsule_cli_requalifies_and_runs(tmp_path, docker_image, capsys):
+    from runtime.skillcache_cli import main
+
+    workspace = tmp_path / "repo"
+    workspace.mkdir()
+    raw = capsule(workspace=workspace)
+    path = publish_capsule(workspace, raw)
+    fixture = tmp_path / "observed.json"
+    fixture.write_text(json.dumps(raw["examples"]))
+    args = ["--workspace", str(workspace), "--capsule", str(path)]
+    assert main(["qualify", *args, "--examples", str(fixture)]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "qualified"
+    assert main(["start", *args, "--session", "trial"]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "needs_bindings"
+    assert main(["continue", *args, "--session", "trial", "--bindings", '{"value": 5}']) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "complete"
+    assert result["completed"][0]["result"] == {"doubled": 10}
+
+
+def test_docker_timeout_removes_container(tmp_path, docker_image, monkeypatch):
+    from runtime import skillcache_executor as executor
+
+    attached = []
+    run = executor._run_bounded
+
+    def record_container(args, **kwargs):
+        attached.append(args[-1])
+        return run(args, **kwargs)
+
+    monkeypatch.setattr(executor, "_run_bounded", record_container)
+    raw = capsule(workspace=tmp_path)
+    prog = raw["programs"]["double"]
+    prog["timeout_seconds"] = 4
+    prog["files"]["main.py"] = "import time; time.sleep(10)"
+    session = tmp_path / ".asdlc" / "session.json"
+    engine = Executor(raw, tmp_path)
+    result = engine.start({"value": 3}, tmp_path, session)
+    assert result["your_steps"][0]["diagnostic"] == "capsule step timed out"
+    assert len(attached) == 2  # check and timed-out command
+    for ident in attached:
+        assert not subprocess.check_output(["docker", "ps", "-aq", "--filter", f"id={ident}"]).strip()

@@ -92,7 +92,7 @@ asdlc-skillcache lookup --role codebase --request "Inspect module" --workspace .
 asdlc-skillcache inspect --capsule .asdlc/skill-cache/compiled/<hash>.json
 
 asdlc-skillcache qualify --capsule .asdlc/skill-cache/compiled/<hash>.json \
-  --workspace .
+  --workspace . --examples /path/to/observed-bindings.json
 
 # A new session, with initial known bindings
 asdlc-skillcache start --capsule .asdlc/skill-cache/compiled/<hash>.json \
@@ -141,9 +141,15 @@ sensitive data. The compiler is separate and read-only but still receives the
 selected role instructions and redacted evidence. Treat all compiled sources
 as untrusted; Docker network isolation and filesystem controls are mandatory.
 
-The generic executor currently mounts the input workspace read-only and stores
-outputs in private staging. Therefore a compiled program cannot mutate the
-live source repo directly; file-modifying steps may need model-side promotion.
+Qualification and replay mount a filtered, read-only copy of the workspace.
+Each start and continuation verifies the source fingerprint. The copy excludes
+held-out acceptance, runtime state, checkpoints and known private filenames.
+Exact pipeline matches also include hashes of the role’s public input artifacts.
+For a published hybrid capsule, pass observed bindings as a separate JSON object
+to `qualify --examples` (for example, `{"value": 5}`). Store this fixture
+outside the source workspace. To retry an interrupted program, run `continue`
+with empty bindings. Each attempt starts from the last committed staging output.
+The agent must explicitly promote generated files to the live workspace.
 The codebase-report cache has additional exact-match constraints.
 
 This version does **not** claim the paper's 74–81% token savings. Compile/replay

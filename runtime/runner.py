@@ -5,6 +5,7 @@ LangGraph approval, contracts, QA, or held-out acceptance.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import uuid
@@ -18,14 +19,53 @@ CACHEABLE_ROLES = frozenset({
 })
 
 
+ISSUE_HEADER = re.compile(r"^Issue: ([a-z0-9][a-z0-9._-]{0,99}?)(?=\. |\n|$)")
+
+
 def normalize_task(prompt: str) -> str:
     """Lift only the issue identifier. Keep all other task text exact."""
-    found = re.search(r"(?m)^Issue: ([a-z0-9][a-z0-9._-]{0,99})\b", prompt)
+    found = ISSUE_HEADER.match(prompt)
     if not found:
         return prompt
     issue = found.group(1)
     updated = prompt.replace(f"docs/{issue}/", "docs/{issue}/")
     return updated.replace("Issue: " + issue, "Issue: {issue}", 1)
+
+
+def _task_request(node: str, prompt: str, root: Path) -> str | None:
+    from .skill_cache import MAX_FILE_BYTES, ROLE_INPUTS, workspace_fingerprint
+    from .state import validate_issue
+
+    request = normalize_task(prompt)
+    names = ROLE_INPUTS.get(node, ())
+    if not names:
+        return request
+    match = ISSUE_HEADER.match(prompt)
+    if not match:
+        return None
+    try:
+        docs = root / "docs" / validate_issue(match[1])
+        if docs.is_symlink() or docs.parent.is_symlink():
+            return None
+        inputs = {}
+        for name in names:
+            path = docs / name
+            if path.is_symlink():
+                return None
+            if not path.exists():
+                continue
+            if name == "specs":
+                value = workspace_fingerprint(path)
+                if value is None:
+                    return None
+            else:
+                if not path.is_file() or path.stat().st_size > MAX_FILE_BYTES:
+                    return None
+                value = hashlib.sha256(path.read_bytes()).hexdigest()
+            inputs[name] = value
+    except (OSError, ValueError):
+        return None
+    return request + "\nRole input digests: " + json.dumps(inputs, sort_keys=True)
 
 
 def _instruct_from_capsule(capsule: dict, root: Path) -> str:
@@ -57,10 +97,10 @@ async def run_agent(node: str, prompt: str, config: Config):
     is_cached = bool(config.skill_cache_full and node in CACHEABLE_ROLES)
     buffer_token = None
     before = None
-    request = normalize_task(prompt)
+    request = _task_request(node, prompt, config.repo_root) if is_cached else None
     observations = []
     hit = False
-    if is_cached:
+    if is_cached and request is not None:
         from .skill_cache import workspace_fingerprint
         from .skillcache_compiler import find_capsules
         before = workspace_fingerprint(config.repo_root)
@@ -91,7 +131,8 @@ async def run_agent(node: str, prompt: str, config: Config):
     # Never compile a changed source tree, unsuccessful run, or unobserved
     # execution. Qualification is best-effort and cannot alter the verdict.
     from .skill_cache import workspace_fingerprint
-    if workspace_fingerprint(config.repo_root) != before:
+    if (workspace_fingerprint(config.repo_root) != before
+            or _task_request(node, prompt, config.repo_root) != request):
         return result
     # Automatic qualification requires an actual isolated executor. Never
     # spend extra model calls inventing programs that cannot be safely run.

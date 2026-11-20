@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -73,10 +74,11 @@ async def dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return {"status": "complete" if path else "fallback",
                 "capsule_path": str(path) if path else None, "detail": detail}
     capsule = _load(Path(args.capsule))
-    executor = Executor(capsule, workspace, sandbox=args.sandbox)
     if args.operation == "qualify":
-        ok, reason = qualify(capsule, workspace, sandbox=args.sandbox)
+        examples = _load(Path(args.examples)) if args.examples else None
+        ok, reason = qualify(capsule, workspace, sandbox=args.sandbox, examples=examples)
         return {"status": "qualified" if ok else "fallback", "detail": reason}
+    executor = Executor(capsule, workspace, sandbox=args.sandbox)
     session = _session(workspace, args.session)
     if args.operation == "start":
         return executor.start(_bindings(args.bindings), workspace, session)
@@ -102,13 +104,15 @@ def main(argv: list[str] | None = None) -> int:
             cmd.add_argument("--provider", choices=("codex", "claude"), default="codex")
         if operation in ("compile", "qualify", "start", "continue"):
             cmd.add_argument("--sandbox", choices=("docker",), default="docker")
+        if operation == "qualify":
+            cmd.add_argument("--examples", help="JSON file containing observed binding values")
         if operation in ("start", "continue"):
             cmd.add_argument("--session", required=True)
             cmd.add_argument("--bindings", default="{}")
     args = parser.parse_args(argv)
     try:
         result = asyncio.run(dispatch(args))
-    except (CapsuleError, OSError, json.JSONDecodeError, ValueError, TypeError) as exc:
+    except (CapsuleError, OSError, subprocess.SubprocessError, ValueError, TypeError) as exc:
         print(json.dumps({"status": "fallback", "error": str(exc)[:900]}))
         return 1
     print(json.dumps(result, ensure_ascii=False))

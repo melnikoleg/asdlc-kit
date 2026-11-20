@@ -15,5 +15,7 @@ jobs:
           python-version: "3.11"
       - name: Install runtime and test dependencies
         run: python -m pip install -e '.[dev]'
-      - name: Run unit tests (no Codex or Claude authentication required)
+      - name: Prepare SkillCache integration test image
+        run: docker pull python:3.11-slim
+      - name: Run runtime tests
         run: python -m pytest runtime/tests -o asyncio_mode=auto
