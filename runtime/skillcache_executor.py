@@ -77,8 +77,11 @@ class Executor:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
             inp = basepath / "input.json"
-            inp.write_text(json.dumps({key: bindings[key] for key in program.get("inputs", [])},
-                                      ensure_ascii=False), encoding="utf-8")
+            # Syntax/build checks never need live program inputs.
+            inputs = {} if check_only else {
+                key: bindings[key] for key in program.get("inputs", [])
+            }
+            inp.write_text(json.dumps(inputs, ensure_ascii=False), encoding="utf-8")
             os.chmod(inp, 0o600)
             # Program checks are always run in the same sandbox as execution.
             for key in (("check",) if check_only else ("check", "command")):
