@@ -52,3 +52,9 @@ See `docs/setup/codex-code-mode.md` for setup and limitations.
 For repeated codebase scans, `asdlc-runtime <issue> "<requirement>" --skill-cache`
 opts into a guarded cache backed by successful runs. It never skips approval
 or independent verification. See docs/skill-cache.md.
+
+When a trace-grounded capsule is supplied, use `asdlc-skillcache start` and
+`asdlc-skillcache continue` only for applicable tasks. Interpret its
+`needs_bindings`, `your_steps`, and `complete` reports; deoptimize any failing
+step to normal source-skill work. Docker is mandatory for compiled programs,
+and approval/QA/acceptance gates must never be skipped.

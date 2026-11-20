@@ -1,77 +1,159 @@
-# Execution-grounded skill capsules (experimental)
+# SkillCache: trace-grounded compilation, qualification and warm execution
 
-This opt-in fast path is inspired by **SkillCache** from Ni et al.,
-[arXiv:2611.10022](https://arxiv.org/abs/2611.10022). The paper observes one
-successful invocation, compiles repeatable operations into a capsule, qualifies
-the program by replay, and falls back to the source skill when guards fail.
+Paper: [Ni et al., *How Much Skill Orchestration Can LLM Agents Compile Away?*
+(arXiv:2611.10022)](https://arxiv.org/abs/2611.10022).
 
-## What asdlc-kit implements
+This experimental subsystem implements the paper's observe–compile–qualify–
+execute/deoptimize lifecycle **inside asdlc-kit**, with both Claude and Codex.
+It extends the initial narrow `codebase-agent` report cache and adds a generic
+capsule engine for arbitrary skills. It is not the authors' original code and
+is **not benchmark-equivalent** to their research prototype.
 
-The first capsule is deliberately narrow: **codebase-agent report reuse**.
-This is *not* a full general-purpose SkillCache implementation, nor a compiler
-of arbitrary Claude/Codex tool-call trajectories. It is a guarded deterministic
-program that replays one successful codebase report into another issue.
+## Subsystems
 
-1. **Observe:** the original codebase agent must finish with APPROVED and
-   create a real `docs/{issue}/CODEBASE_CONTEXT.md` file.
-2. **Compile:** store a metadata-only capsule with SHA-256 checksums for the
-   exact requirement, source report and source-workspace snapshot. The
-   deterministic program binds a new issue-local docs path.
-3. **Qualify:** execute the replay program in a temporary directory and
-   byte-compare with the observed report; reject unsuccessful capsules.
-4. **Warm reuse:** only when the exact requirement and scanned workspace
-   (including agent instructions, rules and authored source documentation)
-   still match, replay the report
-   without invoking codebase-agent.
-5. **Deopt:** stale/missing/corrupt capsule, changed source document, changed
-   agent instructions, larger-than-supported workspace, or failed replay
-   automatically invokes the original codebase-agent.
+| Stage | Implementation |
+|---|---|
+| Observe | Opt-in Codex `exec --json` and Claude `stream-json` tool events; sanitized, bounded observations |
+| Compile | Separate read-only Codex/Claude compiler in a fresh directory |
+| Bindings | Named live inputs, model decisions, and outputs from prior programs |
+| Programs | Language-agnostic source packages, argv, syntax/build checks, JSON result contract |
+| Steps | Interleave deterministic programs with natural-language judgments |
+| Qualification | Schema/dataflow -> program checks -> sandboxed replay from observed bindings |
+| Repair | Up to 3 hybrid candidates, then textual capsule, then uncached skill |
+| Storage | Example-free, content-addressed capsules with source trace/request/workspace SHA-256 |
+| Replay | `asdlc-skillcache start` / `continue` persist session position and bindings |
+| Deoptimization | Twice-failed program or one timeout -> `program_failed` handback to the model |
+| Guards | Request, role and workspace/instructions fingerprint; missing evidence -> cold execution |
 
-Raw tool traces, arbitrary shell commands, report content and request text are
-**not** stored in the capsule. Metadata is stored under
-`.asdlc/skill-cache/`; the original report remains in `docs/{issue}/`.
+The compiler does **not** use human acceptance tests, verification answers or
+other unavailable evaluation data. The runner still executes the normal SDLC
+human approval, specs, validation, reviewer/QA and held-out acceptance gates.
 
-## Usage
+## Prerequisites
+
+- Python 3.10+, asdlc-runtime installed.
+- Codex CLI or Claude Code CLI, authenticated.
+- **Docker** for executing untrusted compiled programs. Docker must already
+  have the required image locally (default `python:3.11-slim`). The executor
+  disables networking, runs with dropped capabilities, and mounts the
+  workspace read-only. Outputs go to a session-specific staging directory.
+- No Docker: the original model/skill continues; no untrusted local program
+  execution takes place. The original narrow report-only cache still works.
+
+`local-test` in the Python API exists only for trusted unit test fixtures.
+The production CLI does **not** expose this unsafe runner.
+
+## Normal pipeline use
 
 ~~~bash
-# First invocation: capture a successful codebase scan and qualify it
-asdlc-runtime first-a "Review payment handling" --skill-cache --specs
+# Full opt-in mode: capture real tool events and compile after completed runs
+asdlc-runtime orders "Implement order workflow" --specs --skill-cache
 
-# Identical request, unchanged codebase, fresh issue:
-# codebase scan may be replayed; every other agent still runs normally
-asdlc-runtime first-b "Review payment handling" --skill-cache --specs
+# Works with either provider
+asdlc-runtime orders "Implement order workflow" --provider claude --skill-cache
+asdlc-runtime orders "Implement order workflow" --provider codex --skill-cache
 
-# Later approval always continues the regular deterministic LangGraph
-asdlc-runtime first-b --approve
+# Continue with saved flags/providers
+asdlc-runtime orders --approve
 ~~~
 
-You can use `--provider codex`, `--provider claude`, or hybrid routing
-together with `--skill-cache`. The cache program itself is model-independent.
+The kit still uses the original agent to make/verdict its decisions. A warm
+matching capsule is supplied as a machine-executable optional fast path in the
+agent's prompt. The executing agent judges applicability and can invoke the
+executor using its ordinary shell tool. Missing Docker, mismatched request,
+unavailable bindings and failed programs return control to the original agent.
 
-The server's `POST /pipelines` also accepts `"skill_cache": true`.
-Check `docs/{issue}/STATE.json` (`skill_cache_status`) or the readiness report.
-Statuses: `recorded`, `hit`, `cold`, `greenfield`.
+Automatic trace compilation currently targets codebase, product, planner,
+architect, developer, specification and devops roles. Independent
+acceptance/reviewer/QA agents are intentionally excluded from this optimization.
+Codebase report reuse remains a separate safe direct fast path.
 
-## Safety and limitations
+Observations live under `.asdlc/skill-cache/observations/`; compiled capsules
+under `.asdlc/skill-cache/compiled/`; short-lived execution sessions under
+`.asdlc/skill-cache/sessions/`. Avoid publishing these directories to Git.
 
-- **No gate bypass:** product, planner, specifications, approval, validation,
-  reviewer/QA and held-out acceptance all execute as before.
-- **Exact match:** semantically similar, differently worded requests are cache
-  misses. Even a successful earlier report is invalidated by source changes.
-  Generated docs/{issue}/ SDLC outputs are excluded from the source fingerprint;
-  other authored documentation is included.
-- **No benchmarks claimed:** the paper's 74–81% warm token reductions are from
-  SkillsBench on Claude Code, **not measured in asdlc-kit**. This limited
-  implementation saves at most one codebase-agent invocation per warm hit.
-- **No shell replay:** the capsule cannot execute generated shell scripts.
-- **No content duplication in cache:** capsules contain hashes and a reference
-  to the original report. Removing that report invalidates the capsule.
-- **Security boundary:** stored SHA-256 hashes check accidental/stale changes;
-  they are not digital signatures or a defence against a malicious process
-  with write access to the entire workspace. Treat workspace access carefully.
-- **Filesystem scan limits:** a large, symlinked or unreadable workspace skips
-  caching and runs the original agent.
+## Manual compilation and replay
 
-This is a useful first adapter for the paper's observe–compile–qualify–replay–
-deopt lifecycle. General trace-level program fusion and model handoffs require
-isolated trace collection, sandboxed execution, and explicit verification.
+You may also compile any completed invocation independently of LangGraph.
+
+~~~bash
+# A provider-neutral JSON observation (see examples below) and a SKILL.md file
+asdlc-skillcache compile --role codebase --request "Inspect module" \
+  --trace observed.json --skill .claude/agents/codebase-agent.md \
+  --provider codex --workspace .
+
+asdlc-skillcache lookup --role codebase --request "Inspect module" --workspace .
+asdlc-skillcache inspect --capsule .asdlc/skill-cache/compiled/<hash>.json
+
+asdlc-skillcache qualify --capsule .asdlc/skill-cache/compiled/<hash>.json \
+  --workspace .
+
+# A new session, with initial known bindings
+asdlc-skillcache start --capsule .asdlc/skill-cache/compiled/<hash>.json \
+  --session trial-1 --bindings '{"value": 5}' --workspace .
+
+# If executor reports needs_bindings/your_steps:
+asdlc-skillcache continue --capsule .asdlc/skill-cache/compiled/<hash>.json \
+  --session trial-1 --bindings '{"decision": "approved"}' --workspace .
+~~~
+
+The `start` and `continue` commands return exactly one machine-readable JSON
+report with `status`:
+
+- `needs_bindings`: supply the named live values in `required_bindings`.
+- `your_steps`: do the listed natural-language steps (or recover the single
+  failed program); supply requested bindings, then continue.
+- `complete`: all programs and verification steps completed.
+- `fallback`: unusable capsule or sandbox; run the original source skill.
+
+Programs execute as direct argv (never interpolated shell command strings).
+Each reads `SKILLCACHE_INPUT` and emits one JSON object:
+
+~~~json
+{"status": "complete", "result": {"output_binding": 42}}
+~~~
+
+Programs can write generated files under `SKILLCACHE_OUTPUT`. The resulting
+`staging_directory` is included in executor reports; the agent must inspect
+and explicitly promote validated artifacts to the intended destination. The
+runtime never silently overwrites production files from an LLM-generated
+capsule. Syntax/build checks execute inside the same sandbox.
+
+## Qualification and security
+
+A capsule is admitted only after schema/dataflow checks, program build checks,
+and an end-to-end replay in a **fresh copied workspace** with qualification-only
+observed bindings. Those observed values are removed before publication.
+Programs are retried once on ordinary failure; a timeout deoptimizes
+immediately. Program failures return only their diagnostics and instruction
+to the model so that later steps may remain compiled.
+
+The trace parser redacts known credential formats and ignores dangerous
+command patterns. This is **best effort**, not proof that a trace contains no
+secrets. Do not enable capture on untrusted repositories or environments with
+sensitive data. The compiler is separate and read-only but still receives the
+selected role instructions and redacted evidence. Treat all compiled sources
+as untrusted; Docker network isolation and filesystem controls are mandatory.
+
+The generic executor currently mounts the input workspace read-only and stores
+outputs in private staging. Therefore a compiled program cannot mutate the
+live source repo directly; file-modifying steps may need model-side promotion.
+The codebase-report cache has additional exact-match constraints.
+
+This version does **not** claim the paper's 74–81% token savings. Compile/replay
+latency and the quality of model-generated capsules need to be measured on
+representative real workspaces. Tests use trusted synthetic programs; a live
+authenticated Claude+Codex benchmark is still required.
+
+## Initial report-only cache
+
+The original `codebase-agent` capsule remains supported. It records a
+successful `CODEBASE_CONTEXT.md`, qualifies a deterministic copy, and
+replays only with the same request and repository fingerprint. Its status is
+visible in `docs/{issue}/STATE.json` and the readiness report. In contrast,
+general hybrid capsules run through the model/executor interface above.
+
+## Further reading
+
+The original paper's design and validation protocol are in Sections 4–6;
+Appendix B gives the compiler prompts and representative hybrid capsules.

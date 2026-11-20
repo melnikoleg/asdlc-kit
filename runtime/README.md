@@ -163,3 +163,11 @@ Development uses SQLite (zero setup). For production set
 `CHECKPOINT_BACKEND=postgres` and `DB_URL=postgresql://…` — **no code change**,
 the graph wiring is identical. Postgres gives durable, concurrent-safe state for
 multiple pipelines and horizontal scaling.
+
+## Generic SkillCache executor
+
+Run with `--skill-cache` to enable provider-neutral trace capture, isolated
+capsule compilation, three-gate qualification, and model-guided warm reuse.
+A separate `asdlc-skillcache` command provides `compile`, `lookup`, `inspect`,
+`qualify`, `start`, and `continue` operations. See
+[the SkillCache design and security notes](../docs/skill-cache.md).
