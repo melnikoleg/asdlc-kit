@@ -104,6 +104,9 @@ async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[st
         raise RuntimeError("codex CLI not found on PATH - install/authenticate Codex") from None
 
     stdout, stderr = await process.communicate(full_prompt.encode("utf-8"))
+    if config.skill_cache_full and process.returncode == 0:
+        from .skillcache_capture import record_raw
+        record_raw("codex", stdout.decode("utf-8", "replace"))
     if process.returncode != 0:
         raise RuntimeError(
             f"codex CLI exited {process.returncode}: "

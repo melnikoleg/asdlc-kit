@@ -49,6 +49,7 @@ class Config:
     codex_model_worker: str | None = None
     codex_model_overrides: dict[str, str] = field(default_factory=dict)
     code_mode: bool = True
+    skill_cache_full: bool = False
 
     @property
     def agents_dir(self) -> Path:

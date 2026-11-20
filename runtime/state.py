@@ -92,6 +92,7 @@ class PipelineState(TypedDict, total=False):
     devops: bool
     specs: bool
     skill_cache: bool
+    skill_cache_full: bool
     skill_cache_status: str | None
     provider: str
     agent_providers: dict[str, str]
@@ -122,6 +123,7 @@ def new_state(
     issue: str, requirement: str, devops: bool = False, specs: bool = False,
     provider: str = "claude", agent_providers: dict[str, str] | None = None,
     skill_cache: bool = False,
+    skill_cache_full: bool = False,
 ) -> PipelineState:
     issue = validate_issue(issue)
     if not requirement or not requirement.strip():
@@ -143,6 +145,7 @@ def new_state(
         devops=devops,
         specs=specs,
         skill_cache=skill_cache,
+        skill_cache_full=skill_cache_full,
         skill_cache_status=None,
         provider=provider,
         agent_providers=dict(agent_providers or {}),
@@ -167,6 +170,7 @@ _STATE_JSON_FIELDS = (
     "base_sha",
     "specs",
     "skill_cache",
+    "skill_cache_full",
     "skill_cache_status",
     "provider",
     "agent_providers",

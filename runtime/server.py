@@ -17,6 +17,7 @@ on a different request than the one that started the pipeline (durable resume).
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -88,9 +89,10 @@ async def start(req: StartRequest) -> dict[str, Any]:
         config = configure_providers(_config, req.provider, req.agent_providers)
         initial = new_state(req.issue, req.requirement, devops=req.devops, specs=req.specs,
                             provider=config.provider, agent_providers=config.agent_providers,
-                            skill_cache=req.skill_cache)
+                            skill_cache=req.skill_cache, skill_cache_full=req.skill_cache)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    config = replace(config, skill_cache_full=req.skill_cache)
     graph = build_graph(config, checkpointer=_state["checkpointer"])
     result = await graph.ainvoke(initial, _thread(req.issue))
     return _shape(result)
@@ -106,6 +108,7 @@ async def _graph_for_saved(issue: str):
         _config, snapshot.values.get("provider", "claude"),
         snapshot.values.get("agent_providers", {}), replace_overrides=True,
     )
+    config = replace(config, skill_cache_full=bool(snapshot.values.get("skill_cache_full", False)))
     return build_graph(config, checkpointer=_state["checkpointer"]), snapshot
 
 
