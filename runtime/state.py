@@ -93,6 +93,7 @@ class PipelineState(TypedDict, total=False):
     specs: bool
     skill_cache: bool
     skill_cache_full: bool
+    skill_cache_match: str
     skill_cache_status: str | None
     provider: str
     agent_providers: dict[str, str]
@@ -124,10 +125,13 @@ def new_state(
     provider: str = "claude", agent_providers: dict[str, str] | None = None,
     skill_cache: bool = False,
     skill_cache_full: bool = False,
+    skill_cache_match: str = "exact",
 ) -> PipelineState:
     issue = validate_issue(issue)
     if not requirement or not requirement.strip():
         raise ValueError("requirement must be a non-empty string")
+    if skill_cache_match not in ("exact", "role"):
+        raise ValueError("skill_cache_match must be exact or role")
     from .config import validate_provider
     from .agent_loader import AGENT_FILE
     validate_provider(provider)
@@ -146,6 +150,7 @@ def new_state(
         specs=specs,
         skill_cache=skill_cache,
         skill_cache_full=skill_cache_full,
+        skill_cache_match=skill_cache_match,
         skill_cache_status=None,
         provider=provider,
         agent_providers=dict(agent_providers or {}),
@@ -171,6 +176,7 @@ _STATE_JSON_FIELDS = (
     "specs",
     "skill_cache",
     "skill_cache_full",
+    "skill_cache_match",
     "skill_cache_status",
     "provider",
     "agent_providers",

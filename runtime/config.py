@@ -50,6 +50,7 @@ class Config:
     codex_model_overrides: dict[str, str] = field(default_factory=dict)
     code_mode: bool = True
     skill_cache_full: bool = False
+    skill_cache_match: str = "exact"
 
     @property
     def agents_dir(self) -> Path:

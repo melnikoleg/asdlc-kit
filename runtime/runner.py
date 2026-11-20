@@ -65,7 +65,10 @@ async def run_agent(node: str, prompt: str, config: Config):
         from .skillcache_compiler import find_capsules
         before = workspace_fingerprint(config.repo_root)
         if before:
-            prior = find_capsules(config.repo_root, node, request, before)
+            prior = find_capsules(
+                config.repo_root, node, request, before,
+                match_mode=config.skill_cache_match
+            )
             if prior:
                 hit = True
                 prompt += _instruct_from_capsule(prior[0], config.repo_root)

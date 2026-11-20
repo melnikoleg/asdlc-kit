@@ -185,6 +185,15 @@ def test_publish_strip_examples_and_lookup(tmp_path):
     result = find_capsules(tmp_path, "codebase", "same request", digest(b"workspace"))
     assert len(result) == 1 and result[0]["name"] == "trace_based_math"
     assert find_capsules(tmp_path, "codebase", "other request", digest(b"workspace")) == []
+    relaxed = find_capsules(
+        tmp_path, "codebase", "other request", digest(b"workspace"),
+        match_mode="role",
+    )
+    assert len(relaxed) == 1
+    assert find_capsules(
+        tmp_path, "developer", "other request", digest(b"workspace"),
+        match_mode="role",
+    ) == []
 
 
 def test_trace_capture_is_bounded_and_redacted():
