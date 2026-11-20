@@ -284,8 +284,24 @@ def qualify(candidate: dict[str, Any], workspace: Path, *, sandbox: str = "docke
                 {k: v for k, v in examples.items() if k in candidate["bindings"]},
                 dest, session
             )
+            # Qualification-only examples simulate a model hand-back. The
+            # executor itself, and all program/check calls, are the same as
+            # during warm execution. Examples are stripped before publication.
+            for _ in range(len(candidate["steps"]) + len(candidate.get("verification", [])) + 2):
+                if result["status"] == "complete":
+                    break
+                if result["status"] not in ("needs_bindings", "your_steps"):
+                    return False, "unexpected qualification hand-back: " + str(result)
+                if result["failed_count"]:
+                    return False, "qualification program failed: " + str(result)
+                missing = result["required_bindings"]
+                if not set(missing).issubset(examples):
+                    return False, "model binding examples missing: " + ", ".join(missing)
+                result = executor.resume(
+                    {key: examples[key] for key in missing}, dest, session
+                )
             if result["status"] != "complete" or result["failed_count"]:
-                return False, "qualification replay requires unresolved model steps or failed: " + str(result)
-            return True, "qualified by full deterministic replay"
+                return False, "qualification replay incomplete: " + str(result)
+            return True, "qualified by full deterministic replay with example hand-backs"
     except (CapsuleError, OSError, ValueError, TypeError, subprocess.SubprocessError) as exc:
         return False, str(exc)
