@@ -48,3 +48,7 @@ prompt loop or skip its human approval gate.
   `ASDLC_CODE_MODE=0 asdlc-runtime <issue> "<requirement>"`
 
 See `docs/setup/codex-code-mode.md` for setup and limitations.
+
+For repeated codebase scans, `asdlc-runtime <issue> "<requirement>" --skill-cache`
+opts into a guarded cache backed by successful runs. It never skips approval
+or independent verification. See docs/skill-cache.md.

@@ -136,6 +136,16 @@ Or serve it live from the running server at `GET /dashboard` (and the raw
 aggregate at `GET /metrics`). The dashboard shows total token/cost/time KPIs, a
 per-agent token-spend breakdown, per-pipeline totals, and a recent-runs log.
 
+## Optional grounded codebase capsules
+
+Use `--skill-cache` on initial runs to capture a qualified capsule from a
+successful `codebase-agent` invocation. If a later issue has the **exact same
+requirement** and an identical source/workspace snapshot (including agent
+instructions), the capsule replays the observed `CODEBASE_CONTEXT.md` and
+avoids that agent call. Failure, drift, and cache corruption all fall back to
+the normal generative node. The pipeline still runs the same approval and
+acceptance gates. See [skill cache](../docs/skill-cache.md).
+
 ## Tests
 
 ```bash

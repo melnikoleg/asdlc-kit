@@ -60,6 +60,24 @@ file and test sources by SHA-256. Runtime executes these frozen tests during
 validation and rejects contract modifications. The independent held-out final
 gate remains. See [Specifications mode](docs/specifications-mode.md).
 
+## Execution-grounded skill cache (experimental)
+
+Inspired by the [SkillCache paper](https://arxiv.org/abs/2611.10022),
+`--skill-cache` records a *successful* codebase-agent scan and qualifies a
+replayable, issue-parameterized capsule. On another identical requirement and
+unchanged workspace, the codebase scan can run without a model call. A cache
+miss or changed instructions/source triggers the original agent; all human
+approval, executable-specification and acceptance gates still run.
+
+~~~bash
+asdlc-runtime scan-a "Review payment handling" --specs --skill-cache
+asdlc-runtime scan-b "Review payment handling" --specs --skill-cache
+~~~
+
+This implements only a narrow, guarded report-replay capsule, **not** general
+tool-trace compilation. See [design, limits and safety](docs/skill-cache.md).
+No paper-level token saving is claimed for this project.
+
 ## Usage
 
 Default: Codex CLI with experimental Code Mode and Code Mode Only enabled.
