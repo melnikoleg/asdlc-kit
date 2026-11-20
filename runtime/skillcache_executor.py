@@ -64,7 +64,8 @@ class Executor:
         if sandbox == "docker" and shutil.which("docker") is None:
             raise CapsuleError("docker unavailable; deoptimize to source skill")
 
-    def _program(self, name: str, bindings: dict[str, Any], workspace: Path) -> dict[str, Any]:
+    def _program(self, name: str, bindings: dict[str, Any], workspace: Path,
+                 output_dir: Path) -> dict[str, Any]:
         """Execute one program in an isolated container or explicit test runner."""
         program = self.capsule["programs"][name]
         with tempfile.TemporaryDirectory(prefix="asdlc-capsule-") as base:
@@ -90,14 +91,17 @@ class Executor:
                         "docker", "run", "--rm", "--network", "none", "--pids-limit", "64",
                         "--memory", "512m", "--cpus", "1", "--cap-drop", "ALL",
                         "--security-opt", "no-new-privileges", "--read-only",
-                        "--tmpfs", "/tmp:rw,nosuid,noexec,size=64m",
+                        "--user", f"{os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") else "65534:65534",
+                        "--tmpfs", "/tmp:rw,nosuid,size=64m",
                         "-v", f"{source}:/capsule:ro",
                         "-v", f"{inp}:/input.json:ro",
                         "-v", f"{workspace}:/workspace:ro",
+                        "-v", f"{output_dir}:/output:rw",
                         "-w", "/workspace",
                         "-e", "SKILLCACHE_INPUT=/input.json",
                         "-e", "SKILLCACHE_PACKAGE=/capsule",
                         "-e", "SKILLCACHE_WORKSPACE=/workspace",
+                        "-e", "SKILLCACHE_OUTPUT=/output",
                         self.docker_image, *argv,
                     ]
                     env = {"PATH": os.environ.get("PATH", "")}
@@ -107,7 +111,8 @@ class Executor:
                     env = dict(os.environ)
                     env.update(SKILLCACHE_INPUT=str(inp),
                                SKILLCACHE_PACKAGE=str(source),
-                               SKILLCACHE_WORKSPACE=str(workspace))
+                               SKILLCACHE_WORKSPACE=str(workspace),
+                               SKILLCACHE_OUTPUT=str(output_dir))
                 try:
                     outcome = subprocess.run(
                         args, cwd=workspace if self.sandbox == "local-test" else None,
@@ -175,6 +180,11 @@ class Executor:
         if not workspace.is_dir() or workspace.is_symlink():
             raise CapsuleError("invalid workspace")
         steps = [*self.capsule["steps"], *self.capsule.get("verification", [])]
+        output_dir = session.with_name(session.name + ".outputs")
+        if output_dir.is_symlink():
+            raise CapsuleError("staging output path cannot be symlink")
+        output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        self._staging_dir = output_dir
         fresh_completed: list[dict[str, Any]] = []
         handback: list[dict[str, Any]] = []
         while state["position"] < len(steps):
@@ -201,7 +211,7 @@ class Executor:
             issue = None
             for attempt in range(2):
                 try:
-                    values = self._program(name, state["bindings"], workspace)
+                    values = self._program(name, state["bindings"], workspace, output_dir)
                     issue = None
                     break
                 except TimeoutError as exc:
@@ -250,6 +260,7 @@ class Executor:
             "your_steps": handback,
             "required_bindings": required or [],
             "failed_count": len(state["failed"]),
+            "staging_directory": str(self._staging_dir) if hasattr(self, "_staging_dir") else None,
         }
 
 

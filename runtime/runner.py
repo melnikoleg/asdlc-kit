@@ -90,6 +90,11 @@ async def run_agent(node: str, prompt: str, config: Config):
     from .skill_cache import workspace_fingerprint
     if workspace_fingerprint(config.repo_root) != before:
         return result
+    # Automatic qualification requires an actual isolated executor. Never
+    # spend extra model calls inventing programs that cannot be safely run.
+    import shutil
+    if not shutil.which("docker"):
+        return result
     from .skillcache_trace import observation
     from .skillcache_compiler import compile_observation
     from .agent_loader import load_agent
