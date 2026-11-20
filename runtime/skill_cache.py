@@ -27,9 +27,17 @@ MAX_FILE_BYTES = 4 * 1024 * 1024
 MAX_REPORT_BYTES = 256 * 1024
 EXCLUDED_DIRS = frozenset({
     ".git", ".asdlc", ".asdlc-venv", ".venv", "venv",
-    "node_modules", "docs", "dist", "build", "coverage", ".next",
+    "node_modules", "dist", "build", "coverage", ".next",
     "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".tox",
     ".idea", ".vscode",
+})
+# Skip only per-issue files produced by the SDLC. Source documentation such as
+# docs/architecture.md and docs/design/*.md still invalidates the capsule.
+GENERATED_DOC_MARKERS = frozenset({
+    "STATE.json", "CODEBASE_CONTEXT.md", "PRD.md", "PLAN.md",
+    "TEST_STRATEGY.md", "SPECIFICATIONS.md", "ACCEPTANCE.md",
+    "IMPLEMENTATION.md", "REVIEW.md", "QA.md", "METRICS.json",
+    "PRODUCTION_READINESS.md", "ESCALATION.md",
 })
 
 
@@ -52,6 +60,14 @@ def workspace_fingerprint(root: Path) -> str | None:
             dirs[:] = sorted(d for d in dirs if d not in EXCLUDED_DIRS)
             if any((Path(current) / d).is_symlink() for d in dirs):
                 return None
+            if Path(current).relative_to(root).parts == ("docs",):
+                # Issue directories are generated output, not scan input.
+                # Keep authored top-level and nested design docs in the hash.
+                dirs[:] = [
+                    d for d in dirs
+                    if not any((Path(current) / d / marker).exists()
+                               for marker in GENERATED_DOC_MARKERS)
+                ]
             for name in sorted(files):
                 path = Path(current) / name
                 if path.is_symlink():
@@ -123,6 +139,11 @@ def qualify_and_record(root: Path, issue: str, requirement: str, fingerprint: st
         return False
     original = _read_report(_report(root, issue))
     if original is None:
+        return False
+    # Only a docs path can be rebound safely. A bare issue identifier in
+    # the report could leak stale issue-specific guidance into the next task.
+    bound = _render_report(original, issue, "__asdlc_issue_binding__")
+    if issue.encode("utf-8") in bound:
         return False
     # Program check + replay qualification: run the exact replay program in a
     # fresh temporary directory, then byte-compare its observed output.

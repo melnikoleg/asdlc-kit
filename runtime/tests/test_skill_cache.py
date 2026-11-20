@@ -53,6 +53,25 @@ def test_fingerprint_ignores_generated_docs_and_cache(tmp_path):
     assert workspace_fingerprint(root) != before
 
 
+def test_changes_in_authored_docs_invalidate_fingerprint(tmp_path):
+    root = _project(tmp_path)
+    (root / "docs" / "design").mkdir(parents=True)
+    reference = root / "docs" / "design" / "architecture.md"
+    reference.write_text("Initial design")
+    before = workspace_fingerprint(root)
+    reference.write_text("Updated design")
+    assert workspace_fingerprint(root) != before
+
+
+def test_refuses_unbound_issue_mentions(tmp_path):
+    root = _project(tmp_path)
+    fingerprint = workspace_fingerprint(root)
+    report = root / "docs" / "first-issue" / "CODEBASE_CONTEXT.md"
+    report.parent.mkdir(parents=True)
+    report.write_text(REPORT + "\\nIssue first-issue must be checked manually.\\n")
+    assert not qualify_and_record(root, "first-issue", "task", fingerprint)
+
+
 def test_qualifies_and_replays_with_issue_binding(tmp_path):
     root = _project(tmp_path)
     _record(root)

@@ -20,7 +20,8 @@ program that replays one successful codebase report into another issue.
 3. **Qualify:** execute the replay program in a temporary directory and
    byte-compare with the observed report; reject unsuccessful capsules.
 4. **Warm reuse:** only when the exact requirement and scanned workspace
-   (including agent instructions and rules) still match, replay the report
+   (including agent instructions, rules and authored source documentation)
+   still match, replay the report
    without invoking codebase-agent.
 5. **Deopt:** stale/missing/corrupt capsule, changed source document, changed
    agent instructions, larger-than-supported workspace, or failed replay
@@ -57,6 +58,8 @@ Statuses: `recorded`, `hit`, `cold`, `greenfield`.
   reviewer/QA and held-out acceptance all execute as before.
 - **Exact match:** semantically similar, differently worded requests are cache
   misses. Even a successful earlier report is invalidated by source changes.
+  Generated docs/{issue}/ SDLC outputs are excluded from the source fingerprint;
+  other authored documentation is included.
 - **No benchmarks claimed:** the paper's 74–81% warm token reductions are from
   SkillsBench on Claude Code, **not measured in asdlc-kit**. This limited
   implementation saves at most one codebase-agent invocation per warm hit.
