@@ -73,6 +73,7 @@ skipped.
 
 ~~~bash
 asdlc-runtime orders "Implement order workflow" --specs --skill-cache
+asdlc-runtime orders-v2 "Review related behavior" --skill-cache --skill-cache-match role
 asdlc-skillcache --help
 ~~~
 

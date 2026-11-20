@@ -281,3 +281,15 @@ def test_docker_is_required_by_default(tmp_path, monkeypatch):
     monkeypatch.setattr(skillcache_executor.shutil, "which", lambda cmd: None)
     with pytest.raises(CapsuleError, match="docker unavailable"):
         Executor(capsule(), tmp_path)
+
+
+def test_invalid_matching_mode_is_rejected(tmp_path):
+    from runtime.skillcache_compiler import find_capsules
+    with pytest.raises(CapsuleError, match="match_mode"):
+        find_capsules(tmp_path, "codebase", "task", digest(b"env"), match_mode="anything")
+
+
+def test_state_rejects_invalid_match_mode():
+    from runtime.state import new_state
+    with pytest.raises(ValueError, match="skill_cache_match"):
+        new_state("valid-issue", "task", skill_cache_match="magic")

@@ -53,13 +53,19 @@ asdlc-runtime orders "Implement order workflow" --specs --skill-cache
 asdlc-runtime orders "Implement order workflow" --provider claude --skill-cache
 asdlc-runtime orders "Implement order workflow" --provider codex --skill-cache
 
+# Optional similar-task transfer: the model decides applicability
+asdlc-runtime orders-v2 "Review order edge cases" --provider codex \
+  --skill-cache --skill-cache-match role
+
 # Continue with saved flags/providers
 asdlc-runtime orders --approve
 ~~~
 
 The kit still uses the original agent to make/verdict its decisions. A warm
 matching capsule is supplied as a machine-executable optional fast path in the
-agent's prompt. The executing agent judges applicability and can invoke the
+agent's prompt. Matching defaults to an exact request; `--skill-cache-match role`
+may offer a capsule for a different request of the same agent role in the same
+unchanged workspace, but **never** automatically declares it applicable. The executing agent judges applicability and can invoke the
 executor using its ordinary shell tool. Missing Docker, mismatched request,
 unavailable bindings and failed programs return control to the original agent.
 
