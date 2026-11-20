@@ -102,7 +102,7 @@ async def _run(args: argparse.Namespace) -> int:
                 print("error: a requirement is required to start a pipeline", file=sys.stderr)
                 return 2
             try:
-                initial = new_state(args.issue, args.requirement, devops=args.devops, specs=args.specs, provider=config.provider, agent_providers=config.agent_providers)
+                initial = new_state(args.issue, args.requirement, devops=args.devops, specs=args.specs, provider=config.provider, agent_providers=config.agent_providers, skill_cache=args.skill_cache)
             except ValueError as exc:
                 print(f"error: {exc}", file=sys.stderr)
                 return 2
@@ -120,6 +120,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("requirement", nargs="?", help="requirement text (to start a pipeline)")
     parser.add_argument("--devops", action="store_true", help="also run devops-agent (Docker/CI)")
     parser.add_argument("--specs", action="store_true", help="enable pre-approved executable business specifications")
+    parser.add_argument("--skill-cache", action="store_true",
+                        help="opt-in execution-grounded cache for repeated codebase-agent scans")
     parser.add_argument("--provider", choices=("claude", "codex"), default=None,
                         help="default agent CLI (default: ASDLC_PROVIDER or codex)")
     parser.add_argument("--agent-provider", action="append", default=[], metavar="NODE=PROVIDER",

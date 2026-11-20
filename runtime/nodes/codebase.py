@@ -9,7 +9,8 @@ import os
 from pathlib import Path
 
 from ..config import Config
-from ..state import PipelineState
+from ..skill_cache import qualify_and_record, replay_codebase, workspace_fingerprint
+from ..state import PipelineState, mirror_to_disk
 from ._common import Runner, base_update, make_generative_node
 
 
@@ -42,7 +43,37 @@ def make_codebase_node(config: Config, runner: Runner):
 
     async def _node(state: PipelineState):
         if is_greenfield(config.repo_root):
-            return base_update(state, "codebase", config)
-        return await generative(state)
+            update = base_update(state, "codebase", config)
+            if state.get("skill_cache"):
+                update["skill_cache_status"] = "greenfield"
+                mirror_to_disk({**state, **update}, config.docs_for(state["issue"]))
+            return update
+        if not state.get("skill_cache"):
+            return await generative(state)
+
+        # Observe -> qualify -> replay, with exact-request and workspace guards.
+        # A cache miss always delegates to the source agent; it never implies
+        # an APPROVED verdict by itself.
+        fingerprint = workspace_fingerprint(config.repo_root)
+        issue = state["issue"]
+        if fingerprint and replay_codebase(
+            config.repo_root, issue, state["requirement"], fingerprint
+        ):
+            update = base_update(state, "codebase", config)
+            update["verdicts"] = {"codebase": "APPROVED"}
+            update["artifacts"] = [f"docs/{issue}/CODEBASE_CONTEXT.md"]
+            update["skill_cache_status"] = "hit"
+            mirror_to_disk({**state, **update}, config.docs_for(issue))
+            return update
+
+        update = await generative(state)
+        recorded = bool(
+            fingerprint
+            and update.get("verdicts", {}).get("codebase") == "APPROVED"
+            and qualify_and_record(config.repo_root, issue, state["requirement"], fingerprint)
+        )
+        update["skill_cache_status"] = "recorded" if recorded else "cold"
+        mirror_to_disk({**state, **update}, config.docs_for(issue))
+        return update
 
     return _node

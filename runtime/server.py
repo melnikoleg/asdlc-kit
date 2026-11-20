@@ -50,6 +50,7 @@ class StartRequest(BaseModel):
     requirement: str
     devops: bool = False
     specs: bool = False
+    skill_cache: bool = False
     provider: str | None = None
     agent_providers: dict[str, str] = Field(default_factory=dict)
 
@@ -72,6 +73,8 @@ def _shape(result: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": result.get("phase"),
         "provider": result.get("provider"),
+        "skill_cache": result.get("skill_cache", False),
+        "skill_cache_status": result.get("skill_cache_status"),
         "agent_providers": result.get("agent_providers", {}),
         "iteration": result.get("iteration", 0),
         "failing_agents": result.get("failing_agents", []),
@@ -84,7 +87,8 @@ async def start(req: StartRequest) -> dict[str, Any]:
     try:
         config = configure_providers(_config, req.provider, req.agent_providers)
         initial = new_state(req.issue, req.requirement, devops=req.devops, specs=req.specs,
-                            provider=config.provider, agent_providers=config.agent_providers)
+                            provider=config.provider, agent_providers=config.agent_providers,
+                            skill_cache=req.skill_cache)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     graph = build_graph(config, checkpointer=_state["checkpointer"])
