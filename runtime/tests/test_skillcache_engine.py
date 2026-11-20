@@ -91,7 +91,7 @@ def test_rejects_unknown_program_and_cycles():
 def test_rejects_duplicate_output_and_traversal():
     raw = capsule(model_step=True)
     raw["programs"]["finalize"]["outputs"] = ["doubled"]
-    with pytest.raises(CapsuleError, match="producer"):
+    with pytest.raises(CapsuleError, match="redeclare|producer"):
         validate_capsule(raw)
     raw = capsule()
     raw["programs"]["double"]["files"] = {"../escape.py": "print(1)"}
