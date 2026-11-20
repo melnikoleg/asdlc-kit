@@ -91,6 +91,10 @@ class PipelineState(TypedDict, total=False):
     approved: bool
     devops: bool
     specs: bool
+    skill_cache: bool
+    skill_cache_full: bool
+    skill_cache_match: str
+    skill_cache_status: str | None
     provider: str
     agent_providers: dict[str, str]
     spec_hash: str | None
@@ -119,10 +123,15 @@ def now_iso() -> str:
 def new_state(
     issue: str, requirement: str, devops: bool = False, specs: bool = False,
     provider: str = "claude", agent_providers: dict[str, str] | None = None,
+    skill_cache: bool = False,
+    skill_cache_full: bool = False,
+    skill_cache_match: str = "exact",
 ) -> PipelineState:
     issue = validate_issue(issue)
     if not requirement or not requirement.strip():
         raise ValueError("requirement must be a non-empty string")
+    if skill_cache_match not in ("exact", "role"):
+        raise ValueError("skill_cache_match must be exact or role")
     from .config import validate_provider
     from .agent_loader import AGENT_FILE
     validate_provider(provider)
@@ -139,6 +148,10 @@ def new_state(
         approved=False,
         devops=devops,
         specs=specs,
+        skill_cache=skill_cache,
+        skill_cache_full=skill_cache_full,
+        skill_cache_match=skill_cache_match,
+        skill_cache_status=None,
         provider=provider,
         agent_providers=dict(agent_providers or {}),
         spec_hash=None,
@@ -161,6 +174,10 @@ _STATE_JSON_FIELDS = (
     "iteration",
     "base_sha",
     "specs",
+    "skill_cache",
+    "skill_cache_full",
+    "skill_cache_match",
+    "skill_cache_status",
     "provider",
     "agent_providers",
     "spec_hash",

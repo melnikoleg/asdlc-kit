@@ -156,7 +156,8 @@ async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[st
     """Run one headless ``claude -p`` session; return (assistant text, usage)."""
     args = [
         "claude", "-p", prompt,
-        "--output-format", "json",
+        "--output-format", "stream-json" if config.skill_cache_full else "json",
+        *(["--verbose"] if config.skill_cache_full else []),
         "--append-system-prompt", build_system_prompt(agent, config),
         "--permission-mode", "acceptEdits",
     ]
@@ -181,12 +182,27 @@ async def _run_session(prompt: str, agent: AgentDef, config: Config) -> tuple[st
             f"claude CLI exited {proc.returncode}: {stderr.decode(errors='replace')}"
         )
 
-    try:
-        payload = json.loads(stdout.decode())
-    except json.JSONDecodeError:
-        raise RuntimeError(
-            f"claude CLI returned non-JSON output: {stdout.decode(errors='replace')[-500:]}"
-        ) from None
+    raw_output = stdout.decode("utf-8", "replace")
+    if config.skill_cache_full:
+        from .skillcache_capture import record_raw
+        record_raw("claude", raw_output)
+        payload = None
+        for line in raw_output.splitlines():
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(event, dict) and event.get("type") == "result":
+                payload = event
+        if payload is None:
+            raise RuntimeError("claude CLI stream-json missing final result event")
+    else:
+        try:
+            payload = json.loads(raw_output)
+        except json.JSONDecodeError:
+            raise RuntimeError(
+                f"claude CLI returned non-JSON output: {raw_output[-500:]}"
+            ) from None
     return str(payload.get("result", "")), _usage_from_payload(payload, agent.model)
 
 

@@ -60,6 +60,28 @@ file and test sources by SHA-256. Runtime executes these frozen tests during
 validation and rejects contract modifications. The independent held-out final
 gate remains. See [Specifications mode](docs/specifications-mode.md).
 
+## SkillCache: full trace-grounded lifecycle (experimental)
+
+Based on [arXiv:2611.10022](https://arxiv.org/abs/2611.10022), the
+`--skill-cache` switch captures structured evidence from successful Codex or
+Claude runs, invokes an isolated capsule compiler, qualifies programs in
+Docker, and makes approved hybrid/textual capsules available for replay and
+model hand-backs. Bindings, program checks, verification steps, safe deopt and
+persistent sessions are supported. The existing codebase-report fast path
+remains. Approval, executable specs and independent acceptance are **never**
+skipped.
+
+~~~bash
+asdlc-runtime orders "Implement order workflow" --specs --skill-cache
+asdlc-runtime orders-v2 "Review related behavior" --skill-cache --skill-cache-match role
+asdlc-skillcache --help
+~~~
+
+**Docker with a local Python image is required for compiled-code replay**;
+otherwise the source agent remains in control. See
+[architecture, CLI, qualification and limits](docs/skill-cache.md).
+No paper-level token saving is claimed for this project.
+
 ## Usage
 
 Default: Codex CLI with experimental Code Mode and Code Mode Only enabled.

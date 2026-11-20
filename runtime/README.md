@@ -136,6 +136,16 @@ Or serve it live from the running server at `GET /dashboard` (and the raw
 aggregate at `GET /metrics`). The dashboard shows total token/cost/time KPIs, a
 per-agent token-spend breakdown, per-pipeline totals, and a recent-runs log.
 
+## Optional grounded codebase capsules
+
+Use `--skill-cache` on initial runs to capture a qualified capsule from a
+successful `codebase-agent` invocation. If a later issue has the **exact same
+requirement** and an identical source/workspace snapshot (including agent
+instructions), the capsule replays the observed `CODEBASE_CONTEXT.md` and
+avoids that agent call. Failure, drift, and cache corruption all fall back to
+the normal generative node. The pipeline still runs the same approval and
+acceptance gates. See [skill cache](../docs/skill-cache.md).
+
 ## Tests
 
 ```bash
@@ -153,3 +163,11 @@ Development uses SQLite (zero setup). For production set
 `CHECKPOINT_BACKEND=postgres` and `DB_URL=postgresql://…` — **no code change**,
 the graph wiring is identical. Postgres gives durable, concurrent-safe state for
 multiple pipelines and horizontal scaling.
+
+## Generic SkillCache executor
+
+Run with `--skill-cache` to enable provider-neutral trace capture, isolated
+capsule compilation, three-gate qualification, and model-guided warm reuse.
+A separate `asdlc-skillcache` command provides `compile`, `lookup`, `inspect`,
+`qualify`, `start`, and `continue` operations. See
+[the SkillCache design and security notes](../docs/skill-cache.md).

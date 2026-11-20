@@ -17,6 +17,7 @@ the durable checkpointer reloads exactly where the pipeline left off.
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import asyncio
 import json
 import shutil
@@ -74,6 +75,9 @@ async def _run(args: argparse.Namespace) -> int:
                 snapshot.values.get("agent_providers", {}), replace_overrides=True,
             )
             devops = bool(snapshot.values.get("devops"))
+            config = replace(config,
+                             skill_cache_full=bool(snapshot.values.get("skill_cache_full", False)),
+                             skill_cache_match=snapshot.values.get("skill_cache_match", "exact"))
         else:
             try:
                 config = configure_providers(
@@ -83,6 +87,8 @@ async def _run(args: argparse.Namespace) -> int:
                 print(f"error: {exc}", file=sys.stderr)
                 return 2
             devops = args.devops
+            config = replace(config, skill_cache_full=bool(args.skill_cache),
+                             skill_cache_match=args.skill_cache_match)
 
         needed = required_providers(config, devops=devops)
         if not args.cancel:
@@ -102,7 +108,7 @@ async def _run(args: argparse.Namespace) -> int:
                 print("error: a requirement is required to start a pipeline", file=sys.stderr)
                 return 2
             try:
-                initial = new_state(args.issue, args.requirement, devops=args.devops, specs=args.specs, provider=config.provider, agent_providers=config.agent_providers)
+                initial = new_state(args.issue, args.requirement, devops=args.devops, specs=args.specs, provider=config.provider, agent_providers=config.agent_providers, skill_cache=args.skill_cache, skill_cache_full=args.skill_cache, skill_cache_match=config.skill_cache_match)
             except ValueError as exc:
                 print(f"error: {exc}", file=sys.stderr)
                 return 2
@@ -120,6 +126,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("requirement", nargs="?", help="requirement text (to start a pipeline)")
     parser.add_argument("--devops", action="store_true", help="also run devops-agent (Docker/CI)")
     parser.add_argument("--specs", action="store_true", help="enable pre-approved executable business specifications")
+    parser.add_argument("--skill-cache", action="store_true",
+                        help="opt-in trace-grounded compilation and guarded replay for eligible agents")
+    parser.add_argument("--skill-cache-match", choices=("exact", "role"), default="exact",
+                        help="exact requests only or model-judged same-role candidates")
     parser.add_argument("--provider", choices=("claude", "codex"), default=None,
                         help="default agent CLI (default: ASDLC_PROVIDER or codex)")
     parser.add_argument("--agent-provider", action="append", default=[], metavar="NODE=PROVIDER",

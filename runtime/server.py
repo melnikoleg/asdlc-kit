@@ -17,6 +17,7 @@ on a different request than the one that started the pipeline (durable resume).
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -50,6 +51,8 @@ class StartRequest(BaseModel):
     requirement: str
     devops: bool = False
     specs: bool = False
+    skill_cache: bool = False
+    skill_cache_match: str = "exact"
     provider: str | None = None
     agent_providers: dict[str, str] = Field(default_factory=dict)
 
@@ -72,6 +75,8 @@ def _shape(result: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": result.get("phase"),
         "provider": result.get("provider"),
+        "skill_cache": result.get("skill_cache", False),
+        "skill_cache_status": result.get("skill_cache_status"),
         "agent_providers": result.get("agent_providers", {}),
         "iteration": result.get("iteration", 0),
         "failing_agents": result.get("failing_agents", []),
@@ -84,9 +89,13 @@ async def start(req: StartRequest) -> dict[str, Any]:
     try:
         config = configure_providers(_config, req.provider, req.agent_providers)
         initial = new_state(req.issue, req.requirement, devops=req.devops, specs=req.specs,
-                            provider=config.provider, agent_providers=config.agent_providers)
+                            provider=config.provider, agent_providers=config.agent_providers,
+                            skill_cache=req.skill_cache, skill_cache_full=req.skill_cache,
+                            skill_cache_match=req.skill_cache_match)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    config = replace(config, skill_cache_full=req.skill_cache,
+                     skill_cache_match=req.skill_cache_match)
     graph = build_graph(config, checkpointer=_state["checkpointer"])
     result = await graph.ainvoke(initial, _thread(req.issue))
     return _shape(result)
@@ -102,6 +111,8 @@ async def _graph_for_saved(issue: str):
         _config, snapshot.values.get("provider", "claude"),
         snapshot.values.get("agent_providers", {}), replace_overrides=True,
     )
+    config = replace(config, skill_cache_full=bool(snapshot.values.get("skill_cache_full", False)),
+                     skill_cache_match=snapshot.values.get("skill_cache_match", "exact"))
     return build_graph(config, checkpointer=_state["checkpointer"]), snapshot
 
 
